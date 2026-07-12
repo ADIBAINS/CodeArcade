@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: codearcade-db
+    restart: always
+    environment:
+      POSTGRES_USER: codearcade
+      POSTGRES_PASSWORD: codearcade
+      POSTGRES_DB: codearcade
+    ports:
+      - "5432:5432"
+    volumes:
+      - codearcade_pg:/var/lib/postgresql/data
+
+volumes:
+  codearcade_pg:
+
