@@ -38,26 +38,27 @@ public class JudgeService {
             writeSourceCode(submission, workspace);
             copyRunWrapper(workspace);
 
-            if (!compilerService.compile(submission.getLanguage(), workspace.toFile())) {
+            boolean functionMode = "FUNCTION".equalsIgnoreCase(submission.getJudgeMode());
+            if (!functionMode && !compilerService.compile(submission.getLanguage(), workspace.toFile())) {
                 return new JudgeResult(submission.getId(), Verdict.CE, 0, totalTests, 0, "Compilation Error");
             }
 
             int passed = 0;
             long maxExecutionTime = 0;
             File workspaceFile = workspace.toFile();
-            List<String> runCommand = compilerService.getRunCommand(
-                    submission.getLanguage(),
-                    submission.getMemoryLimitMb(),
-                    workspaceFile
-            );
+            List<String> runCommand = compilerService.getRunCommand(submission.getLanguage(), submission.getMemoryLimitMb(), workspaceFile);
 
             for (TestCase testCase : submission.getTestCases()) {
+                if (functionMode) {
+                    writeFunctionDriver(submission, testCase, workspace);
+                    if (!compilerService.compile(submission.getLanguage(), workspace.toFile())) {
+                        return new JudgeResult(submission.getId(), Verdict.CE, passed, totalTests, maxExecutionTime, "Compilation Error");
+                    }
+                }
                 ExecutionResult executionResult = executionService.execute(
-                        runCommand,
-                        workspaceFile,
-                        testCase.getInput(),
-                        submission.getTimeLimitMs()
-                );
+                        runCommand, workspaceFile,
+                        functionMode ? "" : testCase.getInput(),
+                        submission.getTimeLimitMs());
 
                 maxExecutionTime = Math.max(maxExecutionTime, executionResult.getExecutionTimeMs());
 
@@ -123,6 +124,14 @@ public class JudgeService {
     private void writeSourceCode(Submission submission, Path workspace) throws IOException {
         String fileName = "JAVA".equalsIgnoreCase(submission.getLanguage()) ? "Main.java" : "Main.cpp";
         Files.writeString(workspace.resolve(fileName), submission.getSourceCode());
+    }
+
+    private void writeFunctionDriver(Submission submission, TestCase testCase, Path workspace) throws IOException {
+        String source = "JAVA".equalsIgnoreCase(submission.getLanguage())
+                ? FunctionAdapter.javaSource(submission, testCase)
+                : FunctionAdapter.cppSource(submission, testCase);
+        String fileName = "JAVA".equalsIgnoreCase(submission.getLanguage()) ? "Main.java" : "Main.cpp";
+        Files.writeString(workspace.resolve(fileName), source);
     }
 
     private void copyRunWrapper(Path workspace) throws IOException {

@@ -11,6 +11,10 @@ public class Submission {
     private int timeLimitMs;
     private int memoryLimitMb;
     private List<TestCase> testCases = new ArrayList<>();
+    private String judgeMode = "STDIN";
+    private String functionName = "solve";
+    private String argumentTypes = "";
+    private String returnType = "int";
 
     public Submission() {
     }
@@ -70,5 +74,13 @@ public class Submission {
     public void setTestCases(List<TestCase> testCases) {
         this.testCases = testCases;
     }
-}
 
+    public String getJudgeMode() { return judgeMode; }
+    public void setJudgeMode(String judgeMode) { this.judgeMode = judgeMode; }
+    public String getFunctionName() { return functionName; }
+    public void setFunctionName(String functionName) { this.functionName = functionName; }
+    public String getArgumentTypes() { return argumentTypes; }
+    public void setArgumentTypes(String argumentTypes) { this.argumentTypes = argumentTypes; }
+    public String getReturnType() { return returnType; }
+    public void setReturnType(String returnType) { this.returnType = returnType; }
+}

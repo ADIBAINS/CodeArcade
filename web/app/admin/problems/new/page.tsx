@@ -15,6 +15,10 @@ export default function NewProblemPage() {
     difficulty: "EASY",
     timeLimitMs: 2000,
     memoryLimitMb: 256
+    ,judgeMode: "FUNCTION"
+    ,functionName: "solve"
+    ,argumentTypes: "int,int"
+    ,returnType: "int"
   });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,6 +77,18 @@ export default function NewProblemPage() {
         </div>
         <div className="grid">
           <div className="field">
+            <label>Judge Mode</label>
+            <select className="select" value={form.judgeMode} onChange={(event) => update("judgeMode", event.target.value)}>
+              <option value="FUNCTION">Function (LeetCode-style)</option>
+              <option value="STDIN">Standard input</option>
+            </select>
+          </div>
+          <div className="field"><label>Function Name</label><input className="input" value={form.functionName} onChange={(event) => update("functionName", event.target.value)} /></div>
+          <div className="field"><label>Argument Types</label><input className="input" value={form.argumentTypes} onChange={(event) => update("argumentTypes", event.target.value)} placeholder="int,int or int[]" /></div>
+          <div className="field"><label>Return Type</label><input className="input" value={form.returnType} onChange={(event) => update("returnType", event.target.value)} /></div>
+        </div>
+        <div className="grid">
+          <div className="field">
             <label>Difficulty</label>
             <select className="select" value={form.difficulty} onChange={(event) => update("difficulty", event.target.value)}>
               <option value="EASY">Easy</option>
@@ -96,4 +112,3 @@ export default function NewProblemPage() {
     </main>
   );
 }
-

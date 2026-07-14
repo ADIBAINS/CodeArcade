@@ -18,29 +18,25 @@ type ProblemDetail = {
   difficulty: string;
   timeLimitMs: number;
   memoryLimitMb: number;
+  judgeMode: "STDIN" | "FUNCTION";
+  functionName: string;
+  argumentTypes: string;
+  returnType: string;
   testCases: { id: string; input: string; expected?: string; isHidden: boolean }[];
 };
 
-const javaTemplate = `import java.util.*;
-
-public class Main {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        // Write your solution here
+const javaTemplate = `class Solution {
+    public int solve(int a, int b) {
+        return a + b;
     }
-}
-`;
+}`;
 
-const cppTemplate = `#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-    // Write your solution here
-    return 0;
-}
-`;
+const cppTemplate = `class Solution {
+public:
+    int solve(int a, int b) {
+        return a + b;
+    }
+};`;
 
 export default function ProblemDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -50,7 +46,17 @@ export default function ProblemDetailPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const template = useMemo(() => (language === "JAVA" ? javaTemplate : cppTemplate), [language]);
+  const template = useMemo(() => {
+    if (!problem || problem.judgeMode !== "FUNCTION") return language === "JAVA" ? javaTemplate : cppTemplate;
+    const args = problem.argumentTypes.split(",").map((type, index) => {
+      const normalized = language === "CPP" ? type.trim().replace(/(\w+)\[\]/g, "vector<$1>") : type.trim();
+      return `${normalized} arg${index}`;
+    }).join(", ");
+    const returnType = problem.returnType;
+    return language === "JAVA"
+      ? `class Solution {\n    public ${returnType} ${problem.functionName}(${args}) {\n        // Return the answer for this test case\n        throw new UnsupportedOperationException();\n    }\n}`
+      : `class Solution {\npublic:\n    ${returnType} ${problem.functionName}(${args}) {\n        // Return the answer for this test case\n    }\n};`;
+  }, [language, problem]);
 
   useEffect(() => {
     apiRequest<ProblemDetail>(`/api/problems/${params.slug}`)
@@ -109,7 +115,11 @@ export default function ProblemDetailPage() {
             <p>{problem.statement}</p>
           </div>
           <div className="card">
-            <h3>Input</h3>
+            <h3>Function signature</h3>
+            <pre>{problem.judgeMode === "FUNCTION" ? `${problem.returnType} ${problem.functionName}(${problem.argumentTypes})` : "Standard input (stdin)"}</pre>
+          </div>
+          <div className="card">
+            <h3>Arguments and return value</h3>
             <p>{problem.inputFormat}</p>
           </div>
           <div className="card">
@@ -155,4 +165,3 @@ export default function ProblemDetailPage() {
     </main>
   );
 }
-

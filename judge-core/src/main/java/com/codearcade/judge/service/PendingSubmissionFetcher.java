@@ -69,6 +69,10 @@ public class PendingSubmissionFetcher {
             submission.setSourceCode(stringValue(map.get("sourceCode")));
             submission.setTimeLimitMs(intValue(map.get("timeLimitMs")));
             submission.setMemoryLimitMb(intValue(map.get("memoryLimitMb")));
+            submission.setJudgeMode(stringValue(map.get("judgeMode")));
+            submission.setFunctionName(stringValue(map.get("functionName")));
+            submission.setArgumentTypes(stringValue(map.get("argumentTypes")));
+            submission.setReturnType(stringValue(map.get("returnType")));
             submission.setTestCases(toTestCases(map.get("testCases")));
             submissions.add(submission);
         }

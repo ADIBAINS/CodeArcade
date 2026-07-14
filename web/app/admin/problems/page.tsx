@@ -86,11 +86,11 @@ export default function AdminProblemsPage() {
             </select>
           </div>
           <div className="field">
-            <label>Input</label>
+            <label>Arguments (JSON, e.g. [2, 3] or [[1, 8, 2]])</label>
             <textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} />
           </div>
           <div className="field">
-            <label>Expected Output</label>
+            <label>Expected Return Value</label>
             <textarea className="textarea" value={expected} onChange={(event) => setExpected(event.target.value)} />
           </div>
           <label className="toolbar">
