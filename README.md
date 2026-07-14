@@ -16,39 +16,38 @@ codearcade/
 
 ## Quick Start
 
-1. Start PostgreSQL:
+**First time setup:**
 
 ```bash
-docker compose up -d
-```
-
-2. Configure and run the API:
-
-```bash
-cd api
-cp .env.example .env
 npm install
-npx prisma migrate dev --name init
-npm run seed
-npm run dev
+cd api && npm install && cd ../web && npm install && cd ../judge-core && mvn package -q -DskipTests
+cd ../api && npx prisma migrate dev --name init && npm run seed && cd ..
 ```
 
-3. Configure and run the web app:
+**Run everything (PostgreSQL + API + Web + Judge):**
 
 ```bash
-cd web
-cp .env.local.example .env.local
-npm install
-npm run dev
+npm run all
 ```
 
-4. Run the Java judge:
+This starts all 4 services:
 
-```bash
-cd judge-core
-mvn package
-API_BASE_URL=http://localhost:4000 INTERNAL_JUDGE_TOKEN=change-me-use-openssl-rand-hex-32 java -jar target/codearcade-judge-core-1.0.0.jar
-```
+| Service  | URL                   |
+|----------|-----------------------|
+| Frontend | http://localhost:3000  |
+| API      | http://localhost:4000  |
+| Database | localhost:5432         |
+| Judge    | local execution mode  |
+
+**Other commands:**
+
+| Command           | Description                      |
+|-------------------|----------------------------------|
+| `npm run all`     | Start all services               |
+| `npm run db`      | Start PostgreSQL only            |
+| `npm run db:down` | Stop PostgreSQL                  |
+| `npm run seed`    | Seed the database                |
+| `npm run build`   | Build API and frontend           |
 
 Default local seeded admin:
 
@@ -56,6 +55,46 @@ Default local seeded admin:
 - Password: `admin123`
 
 For production, set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` before running the seed.
+
+## Features
+
+- **Problems**: Browse and solve coding problems with a built-in Monaco editor
+- **Submissions**: Submit Java or C++ code and get real-time verdicts (AC, WA, TLE, CE, RE)
+- **Leaderboard**: Global scoring with difficulty-weighted points
+- **Problem Requests**: Users can suggest new problems; admins review, approve (auto-creates the problem), or reject with feedback
+- **Judge Engine**: Multithreaded Java judge with BlockingQueue, supporting local and Docker execution modes
+
+## API Routes
+
+### Public
+
+| Method | Path                  | Description          |
+|--------|-----------------------|----------------------|
+| GET    | `/api/problems`       | List all problems    |
+| GET    | `/api/problems/:slug` | Get problem detail   |
+| GET    | `/api/leaderboard`    | Global leaderboard   |
+
+### Authenticated
+
+| Method | Path                      | Description              |
+|--------|---------------------------|--------------------------|
+| POST   | `/api/requests`           | Submit a problem request |
+| GET    | `/api/requests/mine`      | List your requests       |
+| GET    | `/api/requests/:id`       | Request detail           |
+| POST   | `/api/submissions`        | Submit code              |
+| GET    | `/api/submissions/:id`    | Submission detail        |
+
+### Admin
+
+| Method | Path                             | Description                |
+|--------|----------------------------------|----------------------------|
+| POST   | `/api/problems`                  | Create a problem           |
+| PUT    | `/api/problems/:id`              | Update a problem           |
+| DELETE | `/api/problems/:id`              | Delete a problem           |
+| POST   | `/api/problems/:id/testcases`    | Add a test case            |
+| GET    | `/api/requests/admin/all`        | List all requests          |
+| POST   | `/api/requests/admin/:id/approve`| Approve (creates Problem)  |
+| POST   | `/api/requests/admin/:id/reject` | Reject with reason         |
 
 ## Security Scope
 

@@ -1,0 +1,19 @@
+{
+  "name": "codearcade",
+  "private": true,
+  "scripts": {
+    "db": "docker compose up -d",
+    "db:down": "docker compose down",
+    "api:dev": "cd api && npm run dev",
+    "web:dev": "cd web && npm run dev",
+    "judge:dev": "cd judge-core && API_BASE_URL=http://localhost:4000 INTERNAL_JUDGE_TOKEN=change-me-use-openssl-rand-hex-32 java -jar target/codearcade-judge-core-1.0.0.jar",
+    "all": "npm run db && sleep 2 && npx concurrently -n api,web,judge -c blue,green,yellow \"npm run api:dev\" \"npm run web:dev\" \"npm run judge:dev\"",
+    "build": "cd api && npm run build && cd ../web && npm run build",
+    "start": "npm run db && sleep 2 && npx concurrently -n api,web,judge -c blue,green,yellow \"cd api && npm start\" \"cd web && npm start\" \"npm run judge:dev\"",
+    "seed": "cd api && npm run seed",
+    "setup": "cd api && npm install && cd ../web && npm install && cd ../judge-core && mvn package -q -DskipTests"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

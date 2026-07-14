@@ -10,6 +10,7 @@ import { authRoutes } from "./modules/auth/auth.routes";
 import { judgeRoutes } from "./modules/judge/judge.routes";
 import { leaderboardRoutes } from "./modules/leaderboard/leaderboard.routes";
 import { problemRoutes } from "./modules/problems/problem.routes";
+import { requestRoutes } from "./modules/requests/requests.routes";
 import { byProblem, mine } from "./modules/submissions/submission.controller";
 import { submissionRoutes } from "./modules/submissions/submission.routes";
 import { problemSubmissionsParamsSchema } from "./modules/submissions/submission.schema";
@@ -70,6 +71,7 @@ app.get("/api/users/me/submissions", authMiddleware, mine);
 app.get("/api/problems/:problemId/submissions", authMiddleware, validate(problemSubmissionsParamsSchema), byProblem);
 app.use("/api/internal/judge", judgeRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/requests", requestRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

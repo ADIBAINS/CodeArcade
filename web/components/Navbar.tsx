@@ -43,10 +43,18 @@ export function Navbar() {
         <Link className="nav-link" href="/leaderboard">
           Leaderboard
         </Link>
+        <Link className="nav-link" href="/requests">
+          Requests
+        </Link>
         {user?.role === "ADMIN" && (
-          <Link className="nav-link" href="/admin/problems">
-            Admin
-          </Link>
+          <>
+            <Link className="nav-link" href="/admin/problems">
+              Admin
+            </Link>
+            <Link className="nav-link" href="/admin/requests">
+              Review
+            </Link>
+          </>
         )}
         <div className="nav-auth">
           <ThemeToggle />

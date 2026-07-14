@@ -37,6 +37,13 @@ enum Language {
   CPP
 }
 
+enum ProblemRequestStatus{
+  PENDING
+  APPROVED
+  REJECTED
+  IN_REVIEW
+}
+
 model User {
   id               String            @id @default(cuid())
   name             String
@@ -47,6 +54,8 @@ model User {
   leaderboardEntry LeaderboardEntry?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  problemRequests  ProblemRequest[] @relation("SubmittedRequests")
+  reviewedRequests ProblemRequest[] @relation("ReviewedRequests")
 }
 
 model Problem {
@@ -110,4 +119,28 @@ model LeaderboardEntry {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model ProblemRequest {
+  id           String                @id @default(cuid())
+  userId       String
+  user         User                  @relation("SubmittedRequests", fields: [userId], references: [id], onDelete: Cascade)
+  
+  title        String
+  statement    String                @db.Text
+  inputFormat  String                @db.Text
+  outputFormat String                @db.Text
+  constraints  String                @db.Text
+  difficulty   Difficulty            
+
+  status       ProblemRequestStatus  @default(PENDING)
+  adminNotes   String?               @db.Text 
+  reviewedById String?               
+  reviewedBy   User?                 @relation("ReviewedRequests", fields: [reviewedById], references: [id])
+  
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
