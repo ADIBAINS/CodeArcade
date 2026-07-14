@@ -1,7 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { Code2, Cpu, Database, ListChecks, PanelTop, Trophy, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../lib/api";
 
 export default function HomePage() {
+  const [totalQuestions, setTotalQuestions] = useState<number | null>(null);
+
+  useEffect(() => {
+    apiRequest<{ count: number }>("/api/problems/count")
+      .then(({ count }) => setTotalQuestions(count))
+      .catch(() => setTotalQuestions(0));
+  }, []);
+
   return (
     <main className="container">
       <div className="page-head">
@@ -20,8 +32,8 @@ export default function HomePage() {
       </div>
       <section className="home-metrics">
         <div className="metric">
-          <strong>3</strong>
-          <span>Seeded problems</span>
+          <strong>{totalQuestions ?? "—"}</strong>
+          <span>Total problems</span>
         </div>
         <div className="metric">
           <strong>5</strong>

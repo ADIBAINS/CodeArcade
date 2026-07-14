@@ -19,6 +19,10 @@ export async function listProblems() {
   });
 }
 
+export async function countProblems() {
+  return prisma.problem.count();
+}
+
 export async function getProblemBySlug(slug: string, includeHidden: boolean) {
   const problem = await prisma.problem.findUnique({
     where: { slug },
@@ -67,4 +71,3 @@ export async function deleteProblem(id: string) {
     throw new ApiError(404, "Problem not found");
   }
 }
-
