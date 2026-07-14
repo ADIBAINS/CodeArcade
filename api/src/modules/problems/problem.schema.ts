@@ -28,6 +28,10 @@ export const createProblemSchema = z.object({
     difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
     timeLimitMs: z.number().int().min(500).max(10000).default(2000),
     memoryLimitMb: z.number().int().min(64).max(1024).default(256)
+    ,judgeMode: z.enum(["STDIN", "FUNCTION"]).default("STDIN")
+    ,functionName: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).default("solve")
+    ,argumentTypes: z.string().max(200).default("")
+    ,returnType: z.string().max(100).default("int")
   })
 });
 
@@ -50,6 +54,9 @@ export const updateProblemSchema = z.object({
     difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional(),
     timeLimitMs: z.number().int().min(500).max(10000).optional(),
     memoryLimitMb: z.number().int().min(64).max(1024).optional()
+    ,judgeMode: z.enum(["STDIN", "FUNCTION"]).optional()
+    ,functionName: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional()
+    ,argumentTypes: z.string().max(200).optional()
+    ,returnType: z.string().max(100).optional()
   })
 });
-

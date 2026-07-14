@@ -58,6 +58,10 @@ export async function fetchPendingSubmissions(limit: number) {
       sourceCode: submission.sourceCode,
       timeLimitMs: submission.problem.timeLimitMs,
       memoryLimitMb: submission.problem.memoryLimitMb,
+      judgeMode: submission.problem.judgeMode,
+      functionName: submission.problem.functionName,
+      argumentTypes: submission.problem.argumentTypes,
+      returnType: submission.problem.returnType,
       testCases: submission.problem.testCases
     }));
   });

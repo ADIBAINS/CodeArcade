@@ -69,6 +69,10 @@ model Problem {
   difficulty    Difficulty
   timeLimitMs   Int          @default(2000)
   memoryLimitMb Int          @default(256)
+  judgeMode     String       @default("STDIN")
+  functionName  String       @default("solve")
+  argumentTypes String       @default("")
+  returnType    String       @default("int")
   testCases     TestCase[]
   submissions   Submission[]
   createdAt     DateTime     @default(now())
