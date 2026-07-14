@@ -96,6 +96,46 @@ For production, set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` before running t
 | POST   | `/api/requests/admin/:id/approve`| Approve (creates Problem)  |
 | POST   | `/api/requests/admin/:id/reject` | Reject with reason         |
 
+## Deployment
+
+**EC2 / VPS (single command):**
+
+```bash
+git clone <repo-url> && cd codearcade
+./deploy.sh
+```
+
+This generates a `.env` with random secrets, builds all Docker images, starts all 4 services, and seeds the database.
+
+**Manual:**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec -T api npx prisma db seed
+```
+
+**Environment variables** (set in `.env`):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_PASSWORD` | Database password | random |
+| `JWT_SECRET` | Token signing key | random |
+| `INTERNAL_JUDGE_TOKEN` | Judge-to-API auth | random |
+| `ADMIN_EMAIL` | Seed admin email | `admin@codearcade.local` |
+| `ADMIN_PASSWORD` | Seed admin password | random |
+| `CORS_ORIGIN` | Allowed frontend origin | `http://localhost:3000` |
+| `NEXT_PUBLIC_API_URL` | Frontend -> API URL | `http://localhost:4000` |
+| `JUDGE_EXECUTION_MODE` | `local` or `docker` | `docker` |
+
+**Useful commands:**
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f api     # API logs
+docker compose -f docker-compose.prod.yml logs -f judge   # Judge logs
+docker compose -f docker-compose.prod.yml down            # Stop all
+docker compose -f docker-compose.prod.yml up -d --build   # Rebuild and restart
+```
+
 ## Security Scope
 
 Local judge mode is suitable only for a closed classroom/demo environment. It uses temporary workspaces, execution timeouts, Java `-Xmx`, and a C++ `ulimit` wrapper. Public deployments must run the judge with Docker execution mode:

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: codearcade-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codearcade}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codearcade}
+      POSTGRES_DB: ${POSTGRES_DB:-codearcade}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - codearcade_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codearcade}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: codearcade-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-4000}:4000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-codearcade}:${POSTGRES_PASSWORD:-codearcade}@postgres:5432/${POSTGRES_DB:-codearcade}
+      JWT_SECRET: ${JWT_SECRET:-change-me-use-openssl-rand-hex-32}
+      INTERNAL_JUDGE_TOKEN: ${INTERNAL_JUDGE_TOKEN:-change-me-use-openssl-rand-hex-32}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PORT: 4000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@codearcade.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      GLOBAL_RATE_LIMIT: 300
+      AUTH_RATE_LIMIT: 20
+      SUBMISSION_RATE_LIMIT: 10
+      JUDGE_STALE_THRESHOLD_MS: 60000
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: codearcade-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+
+  judge:
+    build:
+      context: .
+      dockerfile: judge-core/Dockerfile
+    container_name: codearcade-judge
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_BASE_URL: http://api:4000
+      INTERNAL_JUDGE_TOKEN: ${INTERNAL_JUDGE_TOKEN:-change-me-use-openssl-rand-hex-32}
+      CODEARCADE_ENV: ${CODEARCADE_ENV:-production}
+      JUDGE_EXECUTION_MODE: ${JUDGE_EXECUTION_MODE:-docker}
+
+volumes:
+  codearcade_pg:
