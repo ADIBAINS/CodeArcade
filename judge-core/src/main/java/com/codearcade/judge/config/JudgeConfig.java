@@ -9,6 +9,7 @@ public class JudgeConfig {
     private final int pollIntervalMs;
     private final int fetchLimit;
     private final Path workspaceRoot;
+    private final Path dockerWorkspaceRoot;
     private final String executionMode;
     private final String dockerBinary;
     private final String javaDockerImage;
@@ -24,6 +25,7 @@ public class JudgeConfig {
             int pollIntervalMs,
             int fetchLimit,
             Path workspaceRoot,
+            Path dockerWorkspaceRoot,
             String executionMode,
             String dockerBinary,
             String javaDockerImage,
@@ -38,6 +40,7 @@ public class JudgeConfig {
         this.pollIntervalMs = pollIntervalMs;
         this.fetchLimit = fetchLimit;
         this.workspaceRoot = workspaceRoot;
+        this.dockerWorkspaceRoot = dockerWorkspaceRoot;
         this.executionMode = executionMode;
         this.dockerBinary = dockerBinary;
         this.javaDockerImage = javaDockerImage;
@@ -62,6 +65,7 @@ public class JudgeConfig {
                 intEnv("JUDGE_POLL_INTERVAL_MS", 3000),
                 intEnv("JUDGE_FETCH_LIMIT", 5),
                 Path.of(env("JUDGE_WORKSPACE_ROOT", "workspaces")),
+                Path.of(env("JUDGE_DOCKER_WORKSPACE_ROOT", env("JUDGE_WORKSPACE_ROOT", "workspaces"))),
                 executionMode,
                 env("JUDGE_DOCKER_BINARY", "docker"),
                 env("JUDGE_JAVA_IMAGE", "eclipse-temurin:17-jdk"),
@@ -148,6 +152,10 @@ public class JudgeConfig {
 
     public Path getWorkspaceRoot() {
         return workspaceRoot;
+    }
+
+    public Path getDockerWorkspacePath(Path workspace) {
+        return dockerWorkspaceRoot.resolve(workspaceRoot.relativize(workspace));
     }
 
     public String getExecutionMode() {

@@ -30,7 +30,7 @@ cd ../api && npx prisma migrate dev --name init && npm run seed && cd ..
 npm run all
 ```
 
-This starts all 4 services:
+This starts all 4 local services:
 
 | Service  | URL                   |
 |----------|-----------------------|
@@ -105,7 +105,9 @@ git clone <repo-url> && cd codearcade
 ./deploy.sh
 ```
 
-This generates a `.env` with random secrets, builds all Docker images, starts all 4 services, and seeds the database.
+This generates a `.env` with random secrets, builds all Docker images, starts the stack, and seeds the database. The API and web services are bound only to `127.0.0.1`; the host Nginx service terminates TLS and proxies the configured domain to them. The database remains on the private Docker network.
+
+For a domain, set `CORS_ORIGIN=https://app.example.com` in `.env`, leave `NEXT_PUBLIC_API_URL` empty so the frontend uses `/api`, and terminate TLS in your host/load-balancer configuration before forwarding to Nginx.
 
 **Manual:**
 
@@ -123,8 +125,12 @@ docker compose -f docker-compose.prod.yml exec -T api npx prisma db seed
 | `INTERNAL_JUDGE_TOKEN` | Judge-to-API auth | random |
 | `ADMIN_EMAIL` | Seed admin email | `admin@codearcade.local` |
 | `ADMIN_PASSWORD` | Seed admin password | random |
-| `CORS_ORIGIN` | Allowed frontend origin | `http://localhost:3000` |
-| `NEXT_PUBLIC_API_URL` | Frontend -> API URL | `http://localhost:4000` |
+| `CORS_ORIGIN` | Allowed public frontend origin | `http://localhost` |
+| `NEXT_PUBLIC_API_URL` | Frontend -> API URL; leave empty for same-origin Nginx proxy | empty (`/api`) |
+| `API_HOST_PORT` | Loopback port for the host Nginx API proxy | `4000` |
+| `WEB_HOST_PORT` | Loopback port for the host Nginx web proxy | `3000` |
+| `NGINX_HOST_PORT` | Loopback port for the optional in-stack Nginx diagnostics proxy | `8080` |
+| `JUDGE_DOCKER_WORKSPACE_ROOT` | Absolute host path used for isolated judge workspaces | `<project>/judge-workspaces` |
 | `JUDGE_EXECUTION_MODE` | `local` or `docker` | `docker` |
 
 **Useful commands:**

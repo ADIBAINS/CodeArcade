@@ -63,7 +63,7 @@ public class DockerCommandFactory {
         command.add("--user");
         command.add(config.getDockerUser());
         command.add("-v");
-        command.add(workspace.getAbsolutePath() + ":/workspace" + (readOnlyWorkspace ? ":ro" : ""));
+        command.add(config.getDockerWorkspacePath(workspace.toPath()).toAbsolutePath() + ":/workspace" + (readOnlyWorkspace ? ":ro" : ""));
         command.add("-w");
         command.add("/workspace");
         command.add(image);
