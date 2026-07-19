@@ -8,6 +8,28 @@ const SCORE_BY_DIFFICULTY: Record<Difficulty, number> = {
   HARD: 300
 };
 
+async function withSerializableRetry<T>(operation: () => Promise<T>) {
+  const maxAttempts = Number(process.env.JUDGE_RESULT_RETRY_ATTEMPTS ?? 3);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < maxAttempts
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new ApiError(500, "Judge result transaction failed");
+}
+
 export async function fetchPendingSubmissions(limit: number) {
   const staleThresholdMs = Number(process.env.JUDGE_STALE_THRESHOLD_MS ?? 60000);
   const staleBefore = new Date(Date.now() - staleThresholdMs);
@@ -78,7 +100,7 @@ export async function saveJudgeResult(input: {
   expectedOutput?: string | null;
   actualOutput?: string | null;
 }) {
-  return prisma.$transaction(async (tx) => {
+  return withSerializableRetry(() => prisma.$transaction(async (tx) => {
     const submission = await tx.submission.findUnique({
       where: { id: input.submissionId },
       include: { problem: { select: { difficulty: true } } }
@@ -136,5 +158,5 @@ export async function saveJudgeResult(input: {
     return updated;
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-  });
+  }));
 }

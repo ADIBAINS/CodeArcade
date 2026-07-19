@@ -39,6 +39,7 @@ app.use(cors({
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: Number(process.env.GLOBAL_RATE_LIMIT ?? 300),
+  skip: (req) => req.path.startsWith("/api/internal/judge"),
   standardHeaders: true,
   legacyHeaders: false
 }));
@@ -66,7 +67,13 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRateLimit, authRoutes);
 app.use("/api/problems", problemRoutes);
 app.use("/api/problems/:problemId/testcases", testcaseRoutes);
-app.use("/api/submissions", submissionRateLimit, submissionRoutes);
+app.use("/api/submissions", (req, res, next) => {
+  if (req.method === "POST") {
+    return submissionRateLimit(req, res, next);
+  }
+
+  return next();
+}, submissionRoutes);
 app.get("/api/users/me/submissions", authMiddleware, mine);
 app.get("/api/problems/:problemId/submissions", authMiddleware, validate(problemSubmissionsParamsSchema), byProblem);
 app.use("/api/internal/judge", judgeRoutes);

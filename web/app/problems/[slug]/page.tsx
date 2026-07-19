@@ -38,6 +38,36 @@ public:
     }
 };`;
 
+const javaStdinTemplate = `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        // Read input and print the answer here.
+    }
+}`;
+
+const cppStdinTemplate = `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    // Read input and print the answer here.
+    return 0;
+}`;
+
+function cppType(type: string): string {
+  const trimmed = type.trim();
+  if (trimmed.endsWith("[]")) {
+    return `vector<${cppType(trimmed.slice(0, -2))}>`;
+  }
+
+  return trimmed
+    .replace(/^String$/, "string")
+    .replace(/^boolean$/, "bool")
+    .replace(/^long$/, "long long")
+    .replace(/^double$/, "double");
+}
+
 export default function ProblemDetailPage() {
   const params = useParams<{ slug: string }>();
   const [problem, setProblem] = useState<ProblemDetail | null>(null);
@@ -47,12 +77,13 @@ export default function ProblemDetailPage() {
   const [loading, setLoading] = useState(false);
 
   const template = useMemo(() => {
-    if (!problem || problem.judgeMode !== "FUNCTION") return language === "JAVA" ? javaTemplate : cppTemplate;
+    if (!problem) return language === "JAVA" ? javaTemplate : cppTemplate;
+    if (problem.judgeMode !== "FUNCTION") return language === "JAVA" ? javaStdinTemplate : cppStdinTemplate;
     const args = problem.argumentTypes.split(",").map((type, index) => {
-      const normalized = language === "CPP" ? type.trim().replace(/(\w+)\[\]/g, "vector<$1>") : type.trim();
+      const normalized = language === "CPP" ? cppType(type) : type.trim();
       return `${normalized} arg${index}`;
     }).join(", ");
-    const returnType = problem.returnType;
+    const returnType = language === "CPP" ? cppType(problem.returnType) : problem.returnType;
     return language === "JAVA"
       ? `class Solution {\n    public ${returnType} ${problem.functionName}(${args}) {\n        // Return the answer for this test case\n        throw new UnsupportedOperationException();\n    }\n}`
       : `class Solution {\npublic:\n    ${returnType} ${problem.functionName}(${args}) {\n        // Return the answer for this test case\n    }\n};`;

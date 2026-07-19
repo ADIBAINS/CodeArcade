@@ -216,7 +216,13 @@ public class JsonUtil {
             }
 
             String value = json.substring(start, index);
-            return decimal ? Double.parseDouble(value) : Long.parseLong(value);
+            // Do not use a numeric ternary here: Java promotes the Long branch
+            // to Double, which turns integer function arguments into values
+            // such as 2.0 and makes generated Java drivers fail to compile.
+            if (decimal) {
+                return Double.parseDouble(value);
+            }
+            return Long.parseLong(value);
         }
 
         private Object parseLiteral(String literal, Object value) {
@@ -245,4 +251,3 @@ public class JsonUtil {
         }
     }
 }
-
