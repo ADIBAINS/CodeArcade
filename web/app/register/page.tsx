@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { Eye, EyeOff, KeyRound, Mail, User, UserPlus } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { apiRequest } from "../../lib/api";
 import { clearLegacyToken } from "../../lib/auth";
+import { ArcadeButton } from "../../components/ui/ArcadeButton";
+import { AuthFootLink, AuthShell } from "../../components/ui/AuthShell";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -18,11 +19,10 @@ export default function RegisterPage() {
     event.preventDefault();
     setLoading(true);
     setMessage("");
-
     try {
       await apiRequest("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password }),
       });
       clearLegacyToken();
       window.location.href = "/problems";
@@ -34,61 +34,48 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-hero">
-        <div className="auth-copy">
-          <span className="eyebrow">New Competitor</span>
-          <h1>Create your CodeArcade account.</h1>
-          <p>Register once, submit solutions, inspect verdicts, and climb the leaderboard as problems are solved.</p>
-        </div>
-        <form className="auth-card" onSubmit={submit}>
-          <div className="auth-card-head">
-            <h2>Register</h2>
-            <p className="muted">Your account starts as a normal user. Admin access is seeded separately.</p>
+    <AuthShell
+      eyebrow="New competitor"
+      title="Create your arcade account."
+      blurb="Register once, submit solutions, inspect verdicts, and climb the leaderboard as problems fall."
+      cardTitle="Join the arcade"
+      cardHint="Starts as a normal user. Admin access is seeded separately."
+      foot={<AuthFootLink href="/login" label="Login instead" prefix="Already registered?" />}
+    >
+      <form onSubmit={submit} className="grid gap-4">
+        {message && (
+          <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-300">
+            {message}
           </div>
-          {message && <div className="message error">{message}</div>}
-          <div className="field">
-            <label>Name</label>
-            <div className="input-wrap">
-              <User size={17} />
-              <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
-            </div>
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <div className="input-wrap">
-              <Mail size={17} />
-              <input value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-            </div>
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <div className="input-wrap">
-              <KeyRound size={17} />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="new-password"
-              />
-              <button
-                className="input-icon-btn"
-                type="button"
-                title={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((current) => !current)}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
-          </div>
-          <button className="btn primary wide-btn" disabled={loading}>
-            <UserPlus size={16} /> {loading ? "Creating..." : "Create Account"}
-          </button>
-          <p className="auth-foot">
-            Already registered? <Link href="/login">Login instead</Link>
-          </p>
-        </form>
-      </section>
-    </main>
+        )}
+        <label className="grid gap-1.5">
+          <span className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">Name</span>
+          <span className="flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3 text-[var(--muted)] focus-within:border-teal-300/60">
+            <User size={16} />
+            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="PixelSolver" className="w-full bg-transparent text-sm text-[var(--text)] outline-none" />
+          </span>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">Email</span>
+          <span className="flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3 text-[var(--muted)] focus-within:border-teal-300/60">
+            <Mail size={16} />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@arcade.gg" className="w-full bg-transparent text-sm text-[var(--text)] outline-none" />
+          </span>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">Password</span>
+          <span className="flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3 text-[var(--muted)] focus-within:border-teal-300/60">
+            <KeyRound size={16} />
+            <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder="Min 6 characters" className="w-full bg-transparent text-sm text-[var(--text)] outline-none" />
+            <button type="button" onClick={() => setShowPassword((v) => !v)} className="rounded-lg p-1.5 hover:bg-[var(--surface-muted)]" title={showPassword ? "Hide" : "Show"}>
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </span>
+        </label>
+        <ArcadeButton variant="primary" disabled={loading} className="w-full !min-h-[46px]">
+          <UserPlus size={16} /> {loading ? "Creating…" : "Create account"}
+        </ArcadeButton>
+      </form>
+    </AuthShell>
   );
 }

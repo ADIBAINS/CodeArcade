@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
 type Theme = "light" | "dark";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = current;
     setTheme(current);
   }, []);
 
@@ -21,9 +22,12 @@ export function ThemeToggle() {
   }
 
   return (
-    <button className="icon-btn theme-toggle" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} onClick={toggleTheme}>
+    <button
+      className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] transition hover:border-[var(--line-strong)] hover:text-[var(--text)]"
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      onClick={toggleTheme}
+    >
       {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );
 }
-

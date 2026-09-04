@@ -1,8 +1,11 @@
 "use client";
 
 import { Check, Eye, RefreshCw, X } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ArcadeButton } from "../../../components/ui/ArcadeButton";
+import { EmptyState, PageHead } from "../../../components/ui/PageHead";
 import { apiRequest } from "../../../lib/api";
+import { cn } from "../../../lib/cn";
 
 type AdminRequest = {
   id: string;
@@ -19,10 +22,18 @@ type AdminRequest = {
   reviewedBy: { id: string; name: string } | null;
 };
 
+const STATUS_STYLE: Record<string, string> = {
+  PENDING: "border-sky-300/30 bg-sky-400/10 text-sky-300",
+  IN_REVIEW: "border-amber-300/30 bg-amber-400/10 text-amber-300",
+  APPROVED: "border-emerald-300/30 bg-emerald-400/10 text-emerald-300",
+  REJECTED: "border-red-400/30 bg-red-500/10 text-red-300",
+};
+
 export default function AdminRequestsPage() {
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [filter, setFilter] = useState("");
   const [message, setMessage] = useState("");
+  const [ok, setOk] = useState(false);
   const [selected, setSelected] = useState<AdminRequest | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
@@ -38,16 +49,20 @@ export default function AdminRequestsPage() {
     }
   }
 
+  function note(msg: string, good: boolean) {
+    setMessage(msg);
+    setOk(good);
+  }
+
   async function approve(id: string) {
     setLoading(true);
-    setMessage("");
     try {
       await apiRequest(`/api/requests/admin/${id}/approve`, { method: "POST" });
-      setMessage("Request approved and problem created!");
+      note("Request approved and problem created!", true);
       setSelected(null);
       load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to approve");
+      note(error instanceof Error ? error.message : "Failed to approve", false);
     } finally {
       setLoading(false);
     }
@@ -55,23 +70,22 @@ export default function AdminRequestsPage() {
 
   async function reject(id: string) {
     if (!rejectNotes.trim()) {
-      setMessage("Please provide a reason for rejection");
+      note("Please provide a reason for rejection", false);
       return;
     }
     setLoading(true);
-    setMessage("");
     try {
       await apiRequest(`/api/requests/admin/${id}/reject`, {
         method: "POST",
-        body: JSON.stringify({ adminNotes: rejectNotes })
+        body: JSON.stringify({ adminNotes: rejectNotes }),
       });
-      setMessage("Request rejected.");
+      note("Request rejected.", true);
       setShowRejectModal(null);
       setRejectNotes("");
       setSelected(null);
       load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to reject");
+      note(error instanceof Error ? error.message : "Failed to reject", false);
     } finally {
       setLoading(false);
     }
@@ -79,13 +93,12 @@ export default function AdminRequestsPage() {
 
   async function markInReview(id: string) {
     setLoading(true);
-    setMessage("");
     try {
       await apiRequest(`/api/requests/admin/${id}/in-review`, { method: "POST" });
-      setMessage("Request marked as In Review.");
+      note("Request marked as In Review.", true);
       load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to update");
+      note(error instanceof Error ? error.message : "Failed to update", false);
     } finally {
       setLoading(false);
     }
@@ -95,154 +108,142 @@ export default function AdminRequestsPage() {
     load();
   }, [filter]);
 
-  function statusBadge(status: string) {
-    const map: Record<string, string> = {
-      PENDING: "badge pending",
-      APPROVED: "badge ac",
-      REJECTED: "badge wa",
-      IN_REVIEW: "badge medium"
-    };
-    return map[status] ?? "badge";
-  }
-
   return (
-    <main className="container">
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">Problem Requests</h1>
-          <p className="muted">Review, approve, or reject community-submitted problems.</p>
+    <main className="mx-auto w-[min(1280px,calc(100%-32px))] py-8 pb-16">
+      <PageHead
+        eyebrow="Admin"
+        title="Review requests"
+        description="Approve to auto-create the problem, or reject with feedback visible to the author."
+        actions={
+          <ArcadeButton onClick={load}>
+            <RefreshCw size={15} /> Refresh
+          </ArcadeButton>
+        }
+      />
+      {message && (
+        <div className={cn("mb-5 rounded-xl border px-4 py-3 text-sm font-bold", ok ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-300" : "border-red-400/30 bg-red-500/10 text-red-300")}>
+          {message}
         </div>
-        <button className="btn" onClick={load}>
-          <RefreshCw size={16} /> Refresh
-        </button>
+      )}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {["", "PENDING", "IN_REVIEW", "APPROVED", "REJECTED"].map((f) => (
+          <button
+            key={f || "ALL"}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "rounded-xl border px-3.5 py-1.5 text-[11px] font-black tracking-wider transition",
+              filter === f ? "border-teal-300/40 bg-teal-400/10 text-teal-300" : "border-[var(--line)] text-[var(--muted)] hover:text-[var(--text)]"
+            )}
+          >
+            {f || "ALL"}
+          </button>
+        ))}
       </div>
-
-      {message && <div className={message.includes("approved") || message.includes("rejected") || message.includes("marked") ? "message" : "message error"}>{message}</div>}
-
-      <div className="toolbar">
-        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">All Requests</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_REVIEW">In Review</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
-      </div>
-
-      <div className="split" style={{ alignItems: "start" }}>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>By</th>
-                <th>Difficulty</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((req) => (
-                <tr key={req.id} style={selected?.id === req.id ? { background: "var(--accent-soft)" } : undefined}>
-                  <td>{req.title}</td>
-                  <td>{req.user.name}</td>
-                  <td><span className={`badge ${req.difficulty.toLowerCase()}`}>{req.difficulty}</span></td>
-                  <td><span className={statusBadge(req.status)}>{req.status}</span></td>
-                  <td>{new Date(req.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="icon-btn" title="View details" onClick={() => setSelected(req)}>
-                        <Eye size={16} />
-                      </button>
-                      {(req.status === "PENDING") && (
-                        <>
-                          <button className="icon-btn" title="Approve" onClick={() => approve(req.id)} disabled={loading} style={{ color: "var(--success)" }}>
-                            <Check size={16} />
-                          </button>
-                          <button className="icon-btn danger-btn" title="Reject" onClick={() => setShowRejectModal(req.id)} disabled={loading}>
-                            <X size={16} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+      {requests.length === 0 ? (
+        <EmptyState title="No requests found" hint="Try a different filter." />
+      ) : (
+        <section className="grid items-start gap-4 xl:grid-cols-[1fr_420px]">
+          <div className="glass overflow-x-auto rounded-2xl">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-[var(--line)] text-left text-[11px] font-black uppercase tracking-widest text-[var(--muted)]">
+                  <th className="px-4 py-3">Title</th>
+                  <th className="px-4 py-3">By</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))}
-              {requests.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--muted)" }}>No requests found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {selected && (
-          <div className="card stack">
-            <div className="problem-card-head">
-              <h3 style={{ margin: 0 }}>{selected.title}</h3>
-              <span className={statusBadge(selected.status)}>{selected.status}</span>
-            </div>
-            <div className="problem-meta">
-              <span className={`badge ${selected.difficulty.toLowerCase()}`}>{selected.difficulty}</span>
-              <span>By {selected.user.name}</span>
-            </div>
-            <div className="field">
-              <label>Statement</label>
-              <pre>{selected.statement}</pre>
-            </div>
-            <div className="field">
-              <label>Input Format</label>
-              <pre>{selected.inputFormat}</pre>
-            </div>
-            <div className="field">
-              <label>Output Format</label>
-              <pre>{selected.outputFormat}</pre>
-            </div>
-            <div className="field">
-              <label>Constraints</label>
-              <pre>{selected.constraints}</pre>
-            </div>
-            {selected.adminNotes && (
-              <div className="field">
-                <label>Admin Notes</label>
-                <div className="message">{selected.adminNotes}</div>
-              </div>
-            )}
-            {selected.status !== "APPROVED" && selected.status !== "REJECTED" && (
-              <div style={{ display: "flex", gap: 8 }}>
-                {selected.status === "PENDING" && (
-                  <button className="btn" onClick={() => markInReview(selected.id)} disabled={loading}>
-                    Mark In Review
-                  </button>
-                )}
-                <button className="btn primary" onClick={() => approve(selected.id)} disabled={loading}>
-                  <Check size={16} /> Approve
-                </button>
-                <button className="btn danger-btn" onClick={() => setShowRejectModal(selected.id)} disabled={loading} style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
-                  <X size={16} /> Reject
-                </button>
-              </div>
-            )}
+              </thead>
+              <tbody>
+                {requests.map((req) => (
+                  <tr key={req.id} className={cn("border-b border-[var(--line)]/60 last:border-0 hover:bg-[var(--surface-soft)]/60", selected?.id === req.id && "bg-teal-400/[0.06]")}>
+                    <td className="max-w-[240px] truncate px-4 py-3 font-bold text-[var(--text-strong)]">{req.title}</td>
+                    <td className="px-4 py-3 text-[var(--muted)]">{req.user.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black", STATUS_STYLE[req.status])}>{req.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1.5">
+                        <button onClick={() => setSelected(req)} title="View" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] text-[var(--muted)] hover:text-teal-300">
+                          <Eye size={14} />
+                        </button>
+                        {req.status === "PENDING" && (
+                          <>
+                            <button onClick={() => approve(req.id)} disabled={loading} title="Approve" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/30 text-emerald-300 hover:bg-emerald-400/10">
+                              <Check size={14} />
+                            </button>
+                            <button onClick={() => setShowRejectModal(req.id)} disabled={loading} title="Reject" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-400/30 text-red-300 hover:bg-red-500/10">
+                              <X size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
-
-      {showRejectModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div className="card stack" style={{ maxWidth: 440, width: "100%" }}>
-            <h3 style={{ margin: 0 }}>Reject Request</h3>
-            <p className="muted">Provide a reason for rejection. This will be visible to the user.</p>
-            <div className="field">
-              <label>Reason</label>
-              <textarea className="textarea" value={rejectNotes} onChange={(e) => setRejectNotes(e.target.value)} placeholder="Explain why this request is being rejected..." />
+          {selected ? (
+            <div className="glass grid gap-3 rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-lg font-black text-[var(--text-strong)]">{selected.title}</h3>
+                <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", STATUS_STYLE[selected.status])}>{selected.status}</span>
+              </div>
+              <p className="text-xs font-bold text-[var(--muted)]">By {selected.user.name} · {selected.user.email}</p>
+              {(
+                [
+                  ["Statement", selected.statement],
+                  ["Input", selected.inputFormat],
+                  ["Output", selected.outputFormat],
+                  ["Constraints", selected.constraints],
+                ] as const
+              ).map(([l, b]) => (
+                <div key={l}>
+                  <p className="mb-1 font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">{l}</p>
+                  <pre className="m-0 max-h-40 overflow-y-auto">{b}</pre>
+                </div>
+              ))}
+              {selected.status !== "APPROVED" && selected.status !== "REJECTED" && (
+                <div className="flex flex-wrap gap-2">
+                  {selected.status === "PENDING" && (
+                    <ArcadeButton onClick={() => markInReview(selected.id)} disabled={loading} className="!min-h-[36px] text-xs">
+                      Mark in review
+                    </ArcadeButton>
+                  )}
+                  <ArcadeButton variant="primary" onClick={() => approve(selected.id)} disabled={loading} className="!min-h-[36px] text-xs">
+                    <Check size={14} /> Approve
+                  </ArcadeButton>
+                  <ArcadeButton variant="danger" onClick={() => setShowRejectModal(selected.id)} disabled={loading} className="!min-h-[36px] text-xs">
+                    <X size={14} /> Reject
+                  </ArcadeButton>
+                </div>
+              )}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn primary" onClick={() => reject(showRejectModal)} disabled={loading}>
-                Confirm Rejection
-              </button>
-              <button className="btn" onClick={() => { setShowRejectModal(null); setRejectNotes(""); }}>
+          ) : (
+            <div className="glass rounded-2xl p-8 text-center text-sm text-[var(--muted)]">
+              Select a request to preview its full content.
+            </div>
+          )}
+        </section>
+      )}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowRejectModal(null)}>
+          <div className="glass w-full max-w-md rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-[var(--text-strong)]">Reject request</h3>
+            <p className="mt-1 text-sm text-[var(--muted)]">This feedback is visible to the author.</p>
+            <textarea
+              value={rejectNotes}
+              onChange={(e) => setRejectNotes(e.target.value)}
+              placeholder="Explain why…"
+              className="mt-4 min-h-[110px] w-full rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] p-3 text-sm outline-none focus:border-red-400/50"
+            />
+            <div className="mt-4 flex gap-2">
+              <ArcadeButton variant="danger" onClick={() => reject(showRejectModal)} disabled={loading} className="flex-1">
+                Confirm rejection
+              </ArcadeButton>
+              <ArcadeButton onClick={() => { setShowRejectModal(null); setRejectNotes(""); }} className="flex-1">
                 Cancel
-              </button>
+              </ArcadeButton>
             </div>
           </div>
         </div>
