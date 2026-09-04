@@ -40,17 +40,37 @@ function cppType(type: string): string {
     .replace(/^double$/, "double");
 }
 
+function paramName(type: string, index: number, taken: Set<string>): string {
+  const base =
+    type.endsWith("[]") ? "nums"
+    : type === "String" ? "s"
+    : type === "char" ? "c"
+    : type === "boolean" ? "flag"
+    : type === "double" ? "x"
+    : index === 0 ? "n"
+    : "m";
+  if (!taken.has(base)) {
+    taken.add(base);
+    return base;
+  }
+  let candidate = `${base}${index}`;
+  while (taken.has(candidate)) candidate += "_";
+  taken.add(candidate);
+  return candidate;
+}
+
 export function buildTemplate(
   language: "JAVA" | "CPP",
   problem: { judgeMode: string; functionName: string; argumentTypes: string; returnType: string } | null
 ): string {
   if (!problem) return language === "JAVA" ? javaTemplate : cppTemplate;
   if (problem.judgeMode !== "FUNCTION") return language === "JAVA" ? javaStdinTemplate : cppStdinTemplate;
+  const taken = new Set<string>();
   const args = problem.argumentTypes
     .split(",")
     .map((type, index) => {
       const normalized = language === "CPP" ? cppType(type) : type.trim();
-      return `${normalized} arg${index}`;
+      return `${normalized} ${paramName(type.trim(), index, taken)}`;
     })
     .join(", ");
   const returnType = language === "CPP" ? cppType(problem.returnType) : problem.returnType;

@@ -9,7 +9,7 @@ export const pendingSubmissionsSchema = z.object({
 export const judgeResultSchema = z.object({
   body: z.object({
     submissionId: z.string().min(1),
-    verdict: z.enum(["AC", "WA", "CE", "RE", "TLE"]),
+    verdict: z.enum(["AC", "WA", "CE", "RE", "TLE", "MLE"]),
     passedTests: z.number().int().min(0).max(1000),
     totalTests: z.number().int().min(0).max(1000),
     executionTimeMs: z.number().int().nonnegative().optional(),

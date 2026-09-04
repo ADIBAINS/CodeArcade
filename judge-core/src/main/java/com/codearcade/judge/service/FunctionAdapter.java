@@ -7,48 +7,194 @@ import com.codearcade.judge.util.JsonUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Builds the small platform-owned driver used by LeetCode-style problems. */
+/**
+ * Builds the platform-owned driver used by LeetCode-style (FUNCTION) problems.
+ *
+ * <p>One harness source covers every testcase: the case index arrives as the first program
+ * argument, so each submission is compiled ONCE and executed once per case. Both languages
+ * share a canonical result format:
+ * <ul>
+ *   <li>{@code boolean} prints {@code true} / {@code false} (never {@code 1}/{@code 0})</li>
+ *   <li>integral {@code double}s print without a decimal point ({@code 2}, not {@code 2.0})</li>
+ *   <li>arrays print as {@code [a, b, c]} with the same element rules on both sides</li>
+ *   <li>{@code int}, {@code long}, {@code char} and {@code String} print plainly</li>
+ * </ul>
+ */
 public final class FunctionAdapter {
     private FunctionAdapter() {}
 
-    public static String javaSource(Submission submission, TestCase testCase) {
-        String[] types = types(submission);
-        List<?> values = arguments(testCase.getInput(), types);
-        if (values.size() != types.length) {
-            throw new IllegalArgumentException("Expected " + types.length + " arguments, got " + values.size());
-        }
-
-        List<String> expressions = new ArrayList<>();
-        for (int i = 0; i < types.length; i++) {
-            expressions.add(javaLiteral(values.get(i), types[i]));
+    /** Full Java source: user code plus an indexed-dispatch {@code Main}. */
+    public static String javaHarness(Submission submission, List<TestCase> cases) {
+        String[] types = validatedTypes(submission);
+        String returnType = returnType(submission);
+        StringBuilder dispatch = new StringBuilder();
+        for (int i = 0; i < cases.size(); i++) {
+            List<?> values = arguments(cases.get(i).getInput(), types, i);
+            if (values.size() != types.length) {
+                throw new IllegalArgumentException("Case " + i + ": expected " + types.length + " arguments, got " + values.size());
+            }
+            List<String> expressions = new ArrayList<>();
+            for (int j = 0; j < types.length; j++) {
+                expressions.add(javaLiteral(values.get(j), types[j]));
+            }
+            dispatch.append("            case ").append(i).append(": result = new Solution().")
+                    .append(submission.getFunctionName()).append("(").append(String.join(", ", expressions)).append("); break;\n");
         }
 
         return submission.getSourceCode()
-                + "\npublic class Main { public static void main(String[] args) { "
-                + submission.getReturnType() + " result = new Solution()." + submission.getFunctionName()
-                + "(" + String.join(", ", expressions) + "); "
-                + "System.out.println(String.valueOf(result)); } }\n";
+                + "\npublic class Main {\n"
+                + javaHelpers(returnType)
+                + "    public static void main(String[] args) {\n"
+                + "        if (args.length < 1) throw new IllegalArgumentException(\"Missing test case index\");\n"
+                + "        int caseIndex = Integer.parseInt(args[0]);\n"
+                + "        " + returnType + " result;\n"
+                + "        switch (caseIndex) {\n"
+                + dispatch
+                + "            default: throw new IllegalArgumentException(\"Unknown test case: \" + caseIndex);\n"
+                + "        }\n"
+                + "        " + javaPrint("result", returnType) + "\n"
+                + "    }\n"
+                + "}\n";
     }
 
-    public static String cppSource(Submission submission, TestCase testCase) {
-        String[] types = types(submission);
-        List<?> values = arguments(testCase.getInput(), types);
-        if (values.size() != types.length) {
-            throw new IllegalArgumentException("Expected " + types.length + " arguments, got " + values.size());
-        }
-
-        List<String> expressions = new ArrayList<>();
-        for (int i = 0; i < types.length; i++) {
-            expressions.add(cppLiteral(values.get(i), types[i]));
+    /** Full C++ source: user code plus an indexed-dispatch {@code main}. */
+    public static String cppHarness(Submission submission, List<TestCase> cases) {
+        String[] types = validatedTypes(submission);
+        String returnType = cppType(returnType(submission));
+        StringBuilder dispatch = new StringBuilder();
+        for (int i = 0; i < cases.size(); i++) {
+            List<?> values = arguments(cases.get(i).getInput(), types, i);
+            if (values.size() != types.length) {
+                throw new IllegalArgumentException("Case " + i + ": expected " + types.length + " arguments, got " + values.size());
+            }
+            List<String> expressions = new ArrayList<>();
+            for (int j = 0; j < types.length; j++) {
+                expressions.add(cppLiteral(values.get(j), types[j]));
+            }
+            dispatch.append("        case ").append(i).append(": { Solution solution; result = solution.")
+                    .append(submission.getFunctionName()).append("(").append(String.join(", ", expressions)).append("); break; }\n");
         }
 
         return "#include <bits/stdc++.h>\nusing namespace std;\n"
                 + submission.getSourceCode()
-                + "\nint main() { Solution solution; auto result = solution." + submission.getFunctionName()
-                + "(" + String.join(", ", expressions) + "); cout << result << '\\n'; return 0; }\n";
+                + "\n"
+                + cppHelpers(returnType)
+                + "int main(int argc, char** argv) {\n"
+                + "    if (argc < 2) return 2;\n"
+                + "    int caseIndex = atoi(argv[1]);\n"
+                + "    " + returnType + " result;\n"
+                + "    switch (caseIndex) {\n"
+                + dispatch
+                + "        default: return 2;\n"
+                + "    }\n"
+                + "    " + cppPrint("result", returnType) + "\n"
+                + "    return 0;\n"
+                + "}\n";
     }
 
-    private static List<?> arguments(String input, String[] types) {
+    private static String javaPrint(String value, String returnType) {
+        if ("boolean".equals(returnType)) {
+            return "System.out.println(" + value + " ? \"true\" : \"false\");";
+        }
+        if ("double".equals(returnType)) {
+            return "System.out.println(d2s(" + value + "));";
+        }
+        if (returnType.endsWith("[]")) {
+            return "System.out.println(a2s(" + value + "));";
+        }
+        return "System.out.println(String.valueOf(" + value + "));";
+    }
+
+    private static String javaHelpers(String returnType) {
+        StringBuilder helpers = new StringBuilder();
+        if (needsDoubleHelper(returnType)) {
+            helpers.append("    private static String d2s(double v) {\n")
+                    .append("        if (Double.isFinite(v) && v == Math.rint(v) && Math.abs(v) < 9007199254740992.0) return String.valueOf((long) v);\n")
+                    .append("        return String.valueOf(v);\n")
+                    .append("    }\n");
+        }
+        if (returnType.endsWith("[]")) {
+            String element = returnType.substring(0, returnType.length() - 2);
+            helpers.append("    private static String a2s(").append(element).append("[] a) {\n")
+                    .append("        StringBuilder sb = new StringBuilder(\"[\");\n")
+                    .append("        for (int i = 0; i < a.length; i++) {\n")
+                    .append("            if (i > 0) sb.append(\", \");\n")
+                    .append("            sb.append(").append(javaElement(element)).append(");\n")
+                    .append("        }\n")
+                    .append("        return sb.append(\"]\").toString();\n")
+                    .append("    }\n");
+        }
+        return helpers.toString();
+    }
+
+    private static String javaElement(String element) {
+        return switch (element) {
+            case "boolean" -> "a[i] ? \"true\" : \"false\"";
+            case "double" -> "d2s(a[i])";
+            default -> "String.valueOf(a[i])";
+        };
+    }
+
+    private static String cppPrint(String value, String returnType) {
+        if ("bool".equals(returnType)) {
+            return "cout << (" + value + " ? \"true\" : \"false\") << '\\n';";
+        }
+        if ("double".equals(returnType)) {
+            return "cout << d2s(" + value + ") << '\\n';";
+        }
+        if (returnType.startsWith("vector<")) {
+            return "cout << a2s(" + value + ") << '\\n';";
+        }
+        return "cout << " + value + " << '\\n';";
+    }
+
+    private static String cppHelpers(String returnType) {
+        StringBuilder helpers = new StringBuilder();
+        if (needsDoubleHelper(returnType)) {
+            helpers.append("static std::string d2s(double v) {\n")
+                    .append("    if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 9007199254740992.0) { std::ostringstream o; o << (long long) v; return o.str(); }\n")
+                    .append("    std::ostringstream o; o << std::setprecision(17) << v; return o.str();\n")
+                    .append("}\n");
+        }
+        if (returnType.startsWith("vector<") && returnType.endsWith(">")) {
+            String element = returnType.substring(7, returnType.length() - 1);
+            helpers.append("static std::string a2s(const ").append(returnType).append("& a) {\n")
+                    .append("    std::ostringstream o; o << \"[\";\n")
+                    .append("    for (size_t i = 0; i < a.size(); i++) { if (i) o << \", \"; o << ").append(cppElement(element)).append("; }\n")
+                    .append("    o << \"]\"; return o.str();\n")
+                    .append("}\n");
+        }
+        return helpers.toString();
+    }
+
+    private static String cppElement(String element) {
+        return switch (element) {
+            case "bool" -> "(a[i] ? \"true\" : \"false\")";
+            case "double" -> "d2s(a[i])";
+            default -> "a[i]";
+        };
+    }
+
+    private static boolean needsDoubleHelper(String returnType) {
+        return "double".equals(returnType) || "double[]".equals(returnType) || "vector<double>".equals(returnType);
+    }
+
+    private static String returnType(Submission submission) {
+        String value = submission.getReturnType() == null ? "" : submission.getReturnType().trim();
+        return value.isEmpty() ? "int" : value;
+    }
+
+    private static String[] validatedTypes(Submission submission) {
+        String[] typeList = types(submission);
+        for (String type : typeList) {
+            if (type.contains("][") || (type.endsWith("]") && !type.endsWith("[]"))) {
+                throw new IllegalArgumentException("Nested arrays are not supported: " + type);
+            }
+        }
+        return typeList;
+    }
+
+    private static List<?> arguments(String input, String[] types, int caseIndex) {
         try {
             Object parsed = JsonUtil.parse(input);
             if (parsed instanceof List<?> list && list.size() == types.length) {
@@ -59,7 +205,11 @@ public final class FunctionAdapter {
             // STDIN form, so fall back to token parsing below.
         }
 
-        return stdinArguments(input, types);
+        try {
+            return stdinArguments(input, types);
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("Case " + caseIndex + ": " + error.getMessage(), error);
+        }
     }
 
     private static List<?> stdinArguments(String input, String[] types) {

@@ -30,6 +30,7 @@ enum Verdict {
   CE
   RE
   TLE
+  MLE
 }
 
 enum Language {

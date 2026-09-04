@@ -868,6 +868,10 @@ async function main() {
         outputFormat: problem.outputFormat,
         constraints: problem.constraints,
         difficulty: problem.difficulty,
+        judgeMode: problem.judgeMode as any,
+        functionName: problem.functionName,
+        argumentTypes: problem.argumentTypes,
+        returnType: problem.returnType,
         testCases: {
           create: problem.testCases
         }

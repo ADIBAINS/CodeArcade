@@ -42,31 +42,45 @@ public class JudgeService {
 
         try {
             workspace = createWorkspace(submission.getId());
-            writeSourceCode(submission, workspace);
+            boolean functionMode = "FUNCTION".equalsIgnoreCase(submission.getJudgeMode());
+            File workspaceFile = workspace.toFile();
+            List<TestCase> cases = submission.getTestCases() == null ? List.of() : submission.getTestCases().subList(0, totalTests);
+
+            if (functionMode) {
+                // Single harness for all cases: compile ONCE, then run once per
+                // case index. The harness prints results in canonical form.
+                writeFunctionHarness(submission, cases, workspace);
+            } else {
+                writeSourceCode(submission, workspace);
+            }
             copyRunWrapper(workspace);
 
-            boolean functionMode = "FUNCTION".equalsIgnoreCase(submission.getJudgeMode());
-            if (!functionMode && !compilerService.compile(submission.getLanguage(), workspace.toFile())) {
-                return new JudgeResult(submission.getId(), Verdict.CE, 0, totalTests, 0, "Compilation Error");
+            if (totalTests > 0 || !functionMode) {
+                CompilerService.CompileResult compileResult = compilerService.compile(submission.getLanguage(), workspaceFile);
+                System.out.println("compile submission=" + submission.getId() + " ok=" + compileResult.ok()
+                        + " exit=" + compileResult.exitCode());
+                if (!compileResult.ok()) {
+                    String diagnostics = compileResult.output() == null || compileResult.output().isBlank()
+                            ? "Compilation Error"
+                            : trimError(compileResult.output());
+                    return new JudgeResult(submission.getId(), Verdict.CE, 0, totalTests, 0, diagnostics);
+                }
             }
 
             int passed = 0;
             long maxExecutionTime = 0;
-            File workspaceFile = workspace.toFile();
             List<String> runCommand = compilerService.getRunCommand(submission.getLanguage(), memoryLimitMb, workspaceFile);
-            List<TestCase> cases = submission.getTestCases() == null ? List.of() : submission.getTestCases().subList(0, totalTests);
 
-            for (TestCase testCase : cases) {
+            for (int i = 0; i < cases.size(); i++) {
+                TestCase testCase = cases.get(i);
+                List<String> command = runCommand;
+                String stdin = testCase.getInput();
                 if (functionMode) {
-                    writeFunctionDriver(submission, testCase, workspace);
-                    if (!compilerService.compile(submission.getLanguage(), workspace.toFile())) {
-                        return new JudgeResult(submission.getId(), Verdict.CE, passed, totalTests, maxExecutionTime, "Compilation Error");
-                    }
+                    command = new java.util.ArrayList<>(runCommand);
+                    command.add(String.valueOf(i));
+                    stdin = "";
                 }
-                ExecutionResult executionResult = executionService.execute(
-                        runCommand, workspaceFile,
-                        functionMode ? "" : testCase.getInput(),
-                        timeLimitMs);
+                ExecutionResult executionResult = executionService.execute(command, workspaceFile, stdin, timeLimitMs);
 
                 maxExecutionTime = Math.max(maxExecutionTime, executionResult.getExecutionTimeMs());
 
@@ -86,18 +100,22 @@ public class JudgeService {
 
                 if (executionResult.getExitCode() != 0) {
                     String message = trimError(executionResult.getError());
+                    Verdict verdict = Verdict.RE;
                     // Docker OOM-kill (137) and cgroup kills surface as plain
-                    // non-zero exits; label them so users see MLE, not RE.
+                    // non-zero exits; report them as MLE, not generic RE.
                     if (executionResult.getExitCode() == 137) {
+                        verdict = Verdict.MLE;
                         message = "Memory Limit Exceeded";
                     }
+                    System.out.println("run submission=" + submission.getId() + " case=" + i
+                            + " exit=" + executionResult.getExitCode() + " verdict=" + verdict);
                     return new JudgeResult(
                             submission.getId(),
-                            Verdict.RE,
+                            verdict,
                             passed,
                             totalTests,
                             maxExecutionTime,
-                            message,
+                            message.isBlank() ? verdict.name() : message,
                             testCase.getInput(),
                             testCase.getExpected(),
                             executionResult.getOutput()
@@ -123,6 +141,7 @@ public class JudgeService {
 
             return new JudgeResult(submission.getId(), Verdict.AC, passed, totalTests, maxExecutionTime, null);
         } catch (Exception error) {
+            System.out.println("judge submission=" + submission.getId() + " error=" + error.getMessage());
             return new JudgeResult(submission.getId(), Verdict.RE, 0, totalTests, 0, error.getMessage());
         } finally {
             FileUtil.deleteRecursively(workspace);
@@ -140,10 +159,10 @@ public class JudgeService {
         Files.writeString(workspace.resolve(fileName), submission.getSourceCode());
     }
 
-    private void writeFunctionDriver(Submission submission, TestCase testCase, Path workspace) throws IOException {
+    private void writeFunctionHarness(Submission submission, List<TestCase> cases, Path workspace) throws IOException {
         String source = "JAVA".equalsIgnoreCase(submission.getLanguage())
-                ? FunctionAdapter.javaSource(submission, testCase)
-                : FunctionAdapter.cppSource(submission, testCase);
+                ? FunctionAdapter.javaHarness(submission, cases)
+                : FunctionAdapter.cppHarness(submission, cases);
         String fileName = "JAVA".equalsIgnoreCase(submission.getLanguage()) ? "Main.java" : "Main.cpp";
         Files.writeString(workspace.resolve(fileName), source);
     }

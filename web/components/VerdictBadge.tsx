@@ -7,6 +7,8 @@ const VERDICT_STYLE: Record<string, string> = {
   WRONG_ANSWER: "text-[var(--danger)] bg-[var(--danger-soft)]",
   TLE: "text-[var(--warning)] bg-[var(--warning-soft)]",
   TIME_LIMIT_EXCEEDED: "text-[var(--warning)] bg-[var(--warning-soft)]",
+  MLE: "text-[var(--warning)] bg-[var(--warning-soft)]",
+  MEMORY_LIMIT_EXCEEDED: "text-[var(--warning)] bg-[var(--warning-soft)]",
   CE: "text-[var(--danger)] bg-[var(--danger-soft)]",
   RE: "text-[var(--danger)] bg-[var(--danger-soft)]",
   PENDING: "text-[var(--info)] bg-[var(--info-soft)]",

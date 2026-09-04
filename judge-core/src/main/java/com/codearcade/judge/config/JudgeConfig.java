@@ -13,6 +13,7 @@ public class JudgeConfig {
     private final String executionMode;
     private final String dockerBinary;
     private final String javaDockerImage;
+    private final String javaRunImage;
     private final String cppDockerImage;
     private final String dockerUser;
     private final String dockerCpuLimit;
@@ -35,6 +36,7 @@ public class JudgeConfig {
             String executionMode,
             String dockerBinary,
             String javaDockerImage,
+            String javaRunImage,
             String cppDockerImage,
             String dockerUser,
             String dockerCpuLimit,
@@ -56,6 +58,7 @@ public class JudgeConfig {
         this.executionMode = executionMode;
         this.dockerBinary = dockerBinary;
         this.javaDockerImage = javaDockerImage;
+        this.javaRunImage = javaRunImage;
         this.cppDockerImage = cppDockerImage;
         this.dockerUser = dockerUser;
         this.dockerCpuLimit = dockerCpuLimit;
@@ -100,6 +103,7 @@ public class JudgeConfig {
                 executionMode,
                 env("JUDGE_DOCKER_BINARY", "docker"),
                 env("JUDGE_JAVA_IMAGE", "eclipse-temurin:17-jdk"),
+                env("JUDGE_JAVA_RUN_IMAGE", "eclipse-temurin:17-jre"),
                 env("JUDGE_CPP_IMAGE", "gcc:14"),
                 env("JUDGE_DOCKER_USER", detectDockerUser()),
                 env("JUDGE_DOCKER_CPUS", "1"),
@@ -213,6 +217,10 @@ public class JudgeConfig {
 
     public String getJavaDockerImage() {
         return javaDockerImage;
+    }
+
+    public String getJavaRunImage() {
+        return javaRunImage;
     }
 
     public String getCppDockerImage() {

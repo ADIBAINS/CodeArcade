@@ -34,6 +34,7 @@ public class Main {
         PendingSubmissionFetcher fetcher = new PendingSubmissionFetcher(config.getApiBaseUrl(), config.getInternalToken(), config.getHttpConnectTimeoutSeconds(), config.getHttpRequestTimeoutSeconds());
 
         sweepStaleWorkspaces(config);
+        prePullImages(config);
         ThreadFactory factory = new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger();
             @Override
@@ -97,6 +98,26 @@ public class Main {
         long backoff = (long) baseMs * (1L << Math.min(failures, 5));
         long capped = Math.min(backoff, 60000L);
         return capped + (long) (Math.random() * baseMs);
+    }
+
+    private static void prePullImages(JudgeConfig config) {
+        if (!config.isDockerExecutionMode()) {
+            return;
+        }
+        // Cold `docker pull` during a judgment exceeds the compile timeout and
+        // produces false CE verdicts. Pull once at boot; failures only warn
+        // because the daemon may already have the images cached.
+        java.util.Set<String> images = new java.util.LinkedHashSet<>(java.util.List.of(
+                config.getJavaDockerImage(), config.getJavaRunImage(), config.getCppDockerImage()));
+        for (String image : images) {
+            try {
+                Process process = new ProcessBuilder(config.getDockerBinary(), "pull", image).start();
+                boolean done = process.waitFor(5, TimeUnit.MINUTES);
+                System.out.println("Image pull " + image + ": " + (done && process.exitValue() == 0 ? "ok" : "failed"));
+            } catch (Exception error) {
+                System.err.println("Image pull " + image + " failed: " + error.getMessage());
+            }
+        }
     }
 
     private static void sweepStaleWorkspaces(JudgeConfig config) {

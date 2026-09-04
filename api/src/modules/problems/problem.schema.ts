@@ -1,6 +1,25 @@
 import { z } from "zod";
 import { paginationQuerySchema } from "../../utils/pagination";
 
+// Canonical driver type system shared with the judge's FunctionAdapter.
+// Nested arrays (e.g. int[][]) are rejected: drivers print 1-D arrays only.
+const functionTypePattern = /^(int|long|double|boolean|char|String)(\[\])?$/;
+
+const argumentTypesField = z
+  .string()
+  .max(200)
+  .refine(
+    (v) => v.trim() === "" || v.split(",").every((t) => functionTypePattern.test(t.trim())),
+    { message: "argumentTypes must be a comma list of int, long, double, boolean, char, String or 1-D arrays" }
+  );
+
+const returnTypeField = z
+  .string()
+  .max(100)
+  .refine((v) => functionTypePattern.test(v.trim()), {
+    message: "returnType must be int, long, double, boolean, char, String or a 1-D array"
+  });
+
 export const problemListQuerySchema = z.object({
   query: paginationQuerySchema.partial().optional()
 });
@@ -35,8 +54,8 @@ export const createProblemSchema = z.object({
     memoryLimitMb: z.number().int().min(64).max(1024).default(256)
     ,judgeMode: z.enum(["STDIN", "FUNCTION"]).default("STDIN")
     ,functionName: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).default("solve")
-    ,argumentTypes: z.string().max(200).default("")
-    ,returnType: z.string().max(100).default("int")
+    ,argumentTypes: argumentTypesField.default("")
+    ,returnType: returnTypeField.default("int")
   })
 });
 
@@ -61,7 +80,7 @@ export const updateProblemSchema = z.object({
     memoryLimitMb: z.number().int().min(64).max(1024).optional()
     ,judgeMode: z.enum(["STDIN", "FUNCTION"]).optional()
     ,functionName: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional()
-    ,argumentTypes: z.string().max(200).optional()
-    ,returnType: z.string().max(100).optional()
+    ,argumentTypes: argumentTypesField.optional()
+    ,returnType: returnTypeField.optional()
   })
 });

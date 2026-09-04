@@ -20,23 +20,27 @@ public class DockerCommandFactory {
                 ? List.of("javac", "Main.java")
                 : List.of("g++", "Main.cpp", "-O2", "-o", "Main");
 
-        return dockerCommand(image, workspace, false, memoryLimitMb, languageCommand);
+        // Compilers (notably javac) need a writable root filesystem for scratch
+        // space, so the compile container is NOT --read-only. The workspace
+        // mount itself stays writable here; only execution is locked down.
+        return dockerCommand(image, workspace, false, false, memoryLimitMb, languageCommand);
     }
 
     public List<String> runCommand(String language, File workspace, int memoryLimitMb) {
         int safeMemoryMb = Math.min(Math.max(memoryLimitMb, 64), 1024);
-        String image = imageFor(language);
+        String image = runImageFor(language);
         List<String> languageCommand = "JAVA".equalsIgnoreCase(language)
                 ? List.of("java", "-Xmx" + safeMemoryMb + "m", "Main")
                 : List.of("/workspace/run.sh", String.valueOf(safeMemoryMb * 1024), "/workspace/Main");
 
-        return dockerCommand(image, workspace, true, safeMemoryMb, languageCommand);
+        return dockerCommand(image, workspace, true, true, safeMemoryMb, languageCommand);
     }
 
     private List<String> dockerCommand(
             String image,
             File workspace,
             boolean readOnlyWorkspace,
+            boolean readOnlyRootfs,
             int memoryLimitMb,
             List<String> languageCommand
     ) {
@@ -58,9 +62,11 @@ public class DockerCommandFactory {
         command.add("ALL");
         command.add("--security-opt");
         command.add("no-new-privileges");
-        command.add("--read-only");
-        command.add("--tmpfs");
-        command.add("/tmp:rw,nosuid,size=128m");
+        if (readOnlyRootfs) {
+            command.add("--read-only");
+            command.add("--tmpfs");
+            command.add("/tmp:rw,nosuid,size=128m");
+        }
         command.add("--user");
         command.add(config.getDockerUser());
         command.add("-v");
@@ -70,6 +76,16 @@ public class DockerCommandFactory {
         command.add(image);
         command.addAll(languageCommand);
         return command;
+    }
+
+    private String runImageFor(String language) {
+        if ("JAVA".equalsIgnoreCase(language)) {
+            // JRE-only image for execution: smaller pull and no compiler
+            // available to sandboxed programs. JDK stays compile-only.
+            return config.getJavaRunImage();
+        }
+
+        return imageFor(language);
     }
 
     private String imageFor(String language) {

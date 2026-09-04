@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 public class CompilerService {
+    private static final int MAX_DIAGNOSTIC_CHARS = 4000;
     private static final ExecutorService STREAM_POOL = Executors.newCachedThreadPool(r -> {
         Thread thread = new Thread(r, "judge-compile-io");
         thread.setDaemon(true);
@@ -24,7 +25,8 @@ public class CompilerService {
         this.dockerCommandFactory = new DockerCommandFactory(config);
     }
 
-    public boolean compile(String language, File workspace) throws IOException, InterruptedException {
+    /** Compiles and captures the compiler output so failures carry real diagnostics. */
+    public CompileResult compile(String language, File workspace) throws IOException, InterruptedException {
         if (config.isDockerExecutionMode()) {
             return runWithTimeout(new ProcessBuilder(dockerCommandFactory.compileCommand(language, workspace)), workspace, config.getCompileTimeoutSeconds());
         }
@@ -56,7 +58,7 @@ public class CompilerService {
         throw new IllegalArgumentException("Unsupported language: " + language);
     }
 
-    private boolean runWithTimeout(ProcessBuilder builder, File workspace, int timeoutSeconds)
+    private CompileResult runWithTimeout(ProcessBuilder builder, File workspace, int timeoutSeconds)
             throws IOException, InterruptedException {
         builder.directory(workspace);
         Process process = builder.start();
@@ -75,15 +77,26 @@ public class CompilerService {
         if (!completed) {
             stdout.cancel(true);
             stderr.cancel(true);
-            return false;
+            return new CompileResult(false, -1, "Compilation timed out after " + timeoutSeconds + "s");
         }
 
+        String output;
+        String error;
         try {
-            stdout.join();
-            stderr.join();
-        } catch (RuntimeException error) {
-            return false;
+            output = stdout.join();
+            error = stderr.join();
+        } catch (RuntimeException joinError) {
+            return new CompileResult(false, -1, "Failed to read compiler output");
         }
-        return process.exitValue() == 0;
+        boolean ok = process.exitValue() == 0;
+        String diagnostics = !error.isBlank() ? error : output;
+        if (diagnostics.length() > MAX_DIAGNOSTIC_CHARS) {
+            diagnostics = diagnostics.substring(0, MAX_DIAGNOSTIC_CHARS);
+        }
+        return new CompileResult(ok, process.exitValue(), diagnostics);
+    }
+
+    /** Outcome of one compilation, carrying the compiler diagnostics for CE verdicts. */
+    public record CompileResult(boolean ok, int exitCode, String output) {
     }
 }

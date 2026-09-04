@@ -46,6 +46,8 @@ function verdictLabel(s: SubmissionDetail) {
     WRONG_ANSWER: "Wrong Answer",
     TLE: "Time Limit Exceeded",
     TIME_LIMIT_EXCEEDED: "Time Limit Exceeded",
+    MLE: "Memory Limit Exceeded",
+    MEMORY_LIMIT_EXCEEDED: "Memory Limit Exceeded",
     CE: "Compile Error",
     RE: "Runtime Error",
     PENDING: "Pending",
