@@ -36,7 +36,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   if (!response.ok) {
-    const message = (data as { message?: unknown } | null)?.message;
+    const body = (data ?? {}) as { message?: unknown; details?: unknown };
+    const details = Array.isArray(body.details)
+      ? body.details.filter((d): d is string => typeof d === "string" && d.length > 0)
+      : [];
+    if (details.length > 0) {
+      throw new Error(details.join(" • "));
+    }
+    const message = body.message;
     throw new Error(typeof message === "string" && message ? message : `Request failed (HTTP ${response.status})`);
   }
 

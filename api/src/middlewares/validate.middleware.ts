@@ -11,9 +11,16 @@ export const validate =
     });
 
     if (!result.success) {
+      const details = result.error.issues.map((issue) => {
+        const path = issue.path
+          .filter((segment) => segment !== "body" && segment !== "params" && segment !== "query")
+          .join(".");
+        return path ? `${path}: ${issue.message}` : issue.message;
+      });
       return res.status(400).json({
         message: "Validation error",
-        errors: result.error.flatten()
+        errors: result.error.flatten(),
+        details
       });
     }
 

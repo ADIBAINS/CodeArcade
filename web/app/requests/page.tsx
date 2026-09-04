@@ -129,8 +129,8 @@ export default function RequestsPage() {
           </div>
           <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
             <label className="grid min-w-0 content-start gap-1.5">
-              <span className={labelCls}>Title</span>
-              <input className={inputCls} value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Two Sum" />
+              <span className={labelCls}>Title <span className="font-normal text-[var(--muted)]">(min 3)</span></span>
+              <input required minLength={3} maxLength={120} className={inputCls} value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Two Sum" />
             </label>
             <label className="grid content-start gap-1.5">
               <span className={labelCls}>Difficulty</span>
@@ -141,20 +141,20 @@ export default function RequestsPage() {
               </select>
             </label>
             <label className="grid content-start gap-1.5">
-              <span className={labelCls}>Problem statement</span>
-              <textarea className={cn(inputCls, "min-h-[110px]")} value={form.statement} onChange={(e) => update("statement", e.target.value)} placeholder="Given an array of integers…" />
+              <span className={labelCls}>Problem statement <span className="font-normal text-[var(--muted)]">(min 20)</span></span>
+              <textarea required minLength={20} className={cn(inputCls, "min-h-[110px]")} value={form.statement} onChange={(e) => update("statement", e.target.value)} placeholder="Given an array of integers…" />
             </label>
             <label className="grid content-start gap-1.5">
-              <span className={labelCls}>Input format</span>
-              <textarea className={cn(inputCls, "min-h-[110px]")} value={form.inputFormat} onChange={(e) => update("inputFormat", e.target.value)} placeholder="First line: n…" />
+              <span className={labelCls}>Input format <span className="font-normal text-[var(--muted)]">(min 5)</span></span>
+              <textarea required minLength={5} className={cn(inputCls, "min-h-[110px]")} value={form.inputFormat} onChange={(e) => update("inputFormat", e.target.value)} placeholder="First line: n…" />
             </label>
             <label className="grid content-start gap-1.5">
-              <span className={labelCls}>Output format</span>
-              <textarea className={cn(inputCls, "min-h-[110px]")} value={form.outputFormat} onChange={(e) => update("outputFormat", e.target.value)} placeholder="Print the answer…" />
+              <span className={labelCls}>Output format <span className="font-normal text-[var(--muted)]">(min 5)</span></span>
+              <textarea required minLength={5} className={cn(inputCls, "min-h-[110px]")} value={form.outputFormat} onChange={(e) => update("outputFormat", e.target.value)} placeholder="Print the answer…" />
             </label>
             <label className="grid content-start gap-1.5">
-              <span className={labelCls}>Constraints</span>
-              <textarea className={cn(inputCls, "min-h-[110px] font-mono")} value={form.constraints} onChange={(e) => update("constraints", e.target.value)} placeholder="1 <= n <= 10^5" />
+              <span className={labelCls}>Constraints <span className="font-normal text-[var(--muted)]">(min 5)</span></span>
+              <textarea required minLength={5} className={cn(inputCls, "min-h-[110px] font-mono")} value={form.constraints} onChange={(e) => update("constraints", e.target.value)} placeholder="1 <= n <= 10^5" />
             </label>
             <div className="sm:col-span-2 lg:col-span-3">
               <ArcadeButton variant="primary" disabled={loading}>
