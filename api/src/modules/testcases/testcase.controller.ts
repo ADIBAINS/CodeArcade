@@ -8,5 +8,5 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const includeHidden = req.user?.role === "ADMIN";
-  res.json(await listTestCases(req.params.problemId as string, includeHidden));
+  res.json(await listTestCases(req.params.problemId as string, includeHidden, Number(req.query.page ?? 1), Math.min(Number(req.query.limit ?? 100), 100)));
 });

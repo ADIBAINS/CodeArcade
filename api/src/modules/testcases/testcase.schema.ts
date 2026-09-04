@@ -1,9 +1,14 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../utils/pagination";
 
 export const testCaseProblemParamsSchema = z.object({
   params: z.object({
     problemId: z.string().min(1)
-  })
+  }),
+  query: z.object({
+    page: paginationQuerySchema.shape.page.optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional()
+  }).optional()
 });
 
 export const createTestCaseSchema = z.object({

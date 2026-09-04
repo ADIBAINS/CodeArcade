@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { countProblems, createProblem, deleteProblem, getProblemBySlug, listProblems, updateProblem } from "./problem.service";
 
-export const list = asyncHandler(async (_req: Request, res: Response) => {
-  res.json(await listProblems());
+export const list = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await listProblems(Number(req.query.page ?? 1), Number(req.query.limit ?? 20)));
 });
 
 export const count = asyncHandler(async (_req: Request, res: Response) => {

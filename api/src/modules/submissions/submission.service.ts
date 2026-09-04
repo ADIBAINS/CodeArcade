@@ -1,5 +1,6 @@
 import { prisma } from "../../db/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { paginate, skipTake } from "../../utils/pagination";
 
 export async function createSubmission(
   userId: string,
@@ -42,7 +43,7 @@ export async function getSubmission(id: string, requester: { id: string; role: "
     where: { id },
     include: {
       problem: { select: { id: true, title: true, slug: true, difficulty: true } },
-      user: { select: { id: true, name: true, email: true } }
+      user: { select: { id: true, name: true } }
     }
   });
 
@@ -57,28 +58,60 @@ export async function getSubmission(id: string, requester: { id: string; role: "
   return submission;
 }
 
-export async function listMySubmissions(userId: string) {
-  return prisma.submission.findMany({
-    where: { userId },
-    include: { problem: { select: { id: true, title: true, slug: true, difficulty: true } } },
-    orderBy: { createdAt: "desc" }
-  });
+const submissionListSelect = {
+  id: true,
+  language: true,
+  status: true,
+  verdict: true,
+  passedTests: true,
+  totalTests: true,
+  executionTimeMs: true,
+  createdAt: true,
+  updatedAt: true,
+  problemId: true,
+  userId: true,
+} as const;
+
+export async function listMySubmissions(userId: string, page = 1, limit = 20) {
+  const where = { userId };
+  const [items, total] = await Promise.all([
+    prisma.submission.findMany({
+      where,
+      select: {
+        ...submissionListSelect,
+        problem: { select: { id: true, title: true, slug: true, difficulty: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      ...skipTake(page, limit)
+    }),
+    prisma.submission.count({ where })
+  ]);
+  return paginate(items, total, page, limit);
 }
 
 export async function listProblemSubmissions(
   problemId: string,
-  requester: { id: string; role: "USER" | "ADMIN" }
+  requester: { id: string; role: "USER" | "ADMIN" },
+  page = 1,
+  limit = 20
 ) {
-  return prisma.submission.findMany({
-    where: {
-      problemId,
-      ...(requester.role === "ADMIN" ? {} : { userId: requester.id })
-    },
-    include: {
-      problem: { select: { id: true, title: true, slug: true } },
-      user: { select: { id: true, name: true } }
-    },
-    orderBy: { createdAt: "desc" }
-  });
+  const where = {
+    problemId,
+    ...(requester.role === "ADMIN" ? {} : { userId: requester.id })
+  };
+  const [items, total] = await Promise.all([
+    prisma.submission.findMany({
+      where,
+      select: {
+        ...submissionListSelect,
+        problem: { select: { id: true, title: true, slug: true } },
+        user: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      ...skipTake(page, limit)
+    }),
+    prisma.submission.count({ where })
+  ]);
+  return paginate(items, total, page, limit);
 }
 

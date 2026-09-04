@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../utils/pagination";
 
 export const createRequestSchema = z.object({
   body: z.object({
@@ -42,6 +43,15 @@ export const rejectRequestSchema = z.object({
 
 export const listRequestsQuerySchema = z.object({
   query: z.object({
-    status: z.enum(["PENDING", "APPROVED", "REJECTED", "IN_REVIEW"]).optional()
-  })
+    status: z.enum(["PENDING", "APPROVED", "REJECTED", "IN_REVIEW"]).optional(),
+    page: paginationQuerySchema.shape.page.optional(),
+    limit: paginationQuerySchema.shape.limit.optional()
+  }).optional()
+});
+
+export const myRequestsQuerySchema = z.object({
+  query: z.object({
+    page: paginationQuerySchema.shape.page.optional(),
+    limit: paginationQuerySchema.shape.limit.optional()
+  }).optional()
 });

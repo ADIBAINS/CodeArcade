@@ -16,6 +16,7 @@ import {
 import {
   createRequestSchema,
   listRequestsQuerySchema,
+  myRequestsQuerySchema,
   rejectRequestSchema,
   requestIdParamsSchema,
   updateRequestSchema
@@ -25,15 +26,16 @@ export const requestRoutes = Router();
 
 requestRoutes.use(authMiddleware);
 
-// User endpoints
-requestRoutes.post("/", validate(createRequestSchema), create);
-requestRoutes.get("/mine", mine);
-requestRoutes.get("/:id", validate(requestIdParamsSchema), detail);
-
-// Admin endpoints
+// Admin endpoints declared before /:id so intent is explicit even though
+// segment counts already disambiguate /admin/all from /:id.
 requestRoutes.get("/admin/all", adminMiddleware, validate(listRequestsQuerySchema), listAll);
 requestRoutes.get("/admin/:id", adminMiddleware, validate(requestIdParamsSchema), adminDetail);
 requestRoutes.put("/admin/:id", adminMiddleware, validate(updateRequestSchema), adminUpdate);
 requestRoutes.post("/admin/:id/approve", adminMiddleware, validate(requestIdParamsSchema), adminApprove);
 requestRoutes.post("/admin/:id/reject", adminMiddleware, validate(rejectRequestSchema), adminReject);
 requestRoutes.post("/admin/:id/in-review", adminMiddleware, validate(requestIdParamsSchema), adminSetInReview);
+
+// User endpoints
+requestRoutes.post("/", validate(createRequestSchema), create);
+requestRoutes.get("/mine", validate(myRequestsQuerySchema), mine);
+requestRoutes.get("/:id", validate(requestIdParamsSchema), detail);

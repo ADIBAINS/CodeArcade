@@ -3,6 +3,9 @@ import { cn } from "../../lib/cn";
 
 type Variant = "primary" | "ghost" | "danger";
 
+const base =
+  "inline-flex min-h-[38px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition active:translate-y-px";
+
 export function ArcadeButton({
   variant = "ghost",
   className,
@@ -11,14 +14,12 @@ export function ArcadeButton({
   return (
     <button
       className={cn(
-        "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold transition active:translate-y-px",
-        variant === "primary" &&
-          "neon-btn border-transparent text-white hover:-translate-y-px",
+        base,
+        variant === "primary" && "bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-strong)]",
         variant === "ghost" &&
-          "border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:-translate-y-px hover:border-[var(--line-strong)] hover:bg-[var(--surface-soft)]",
-        variant === "danger" &&
-          "border-red-400/30 bg-red-500/10 text-red-300 hover:bg-red-500/20",
-        props.disabled && "cursor-not-allowed opacity-60 hover:translate-y-0",
+          "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--text-strong)] hover:bg-[var(--surface-soft)]",
+        variant === "danger" && "bg-[var(--danger-soft)] text-[var(--danger)] hover:brightness-110",
+        props.disabled && "cursor-not-allowed opacity-55 hover:translate-y-0",
         className
       )}
       {...props}
@@ -34,11 +35,11 @@ export function ArcadeLink({
   return (
     <Link
       className={cn(
-        "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold transition hover:-translate-y-px active:translate-y-px",
-        variant === "primary" && "neon-btn border-transparent text-white",
+        base,
+        variant === "primary" && "bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-strong)]",
         variant === "ghost" &&
-          "border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--line-strong)] hover:bg-[var(--surface-soft)]",
-        variant === "danger" && "border-red-400/30 bg-red-500/10 text-red-300 hover:bg-red-500/20",
+          "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--text-strong)] hover:bg-[var(--surface-soft)]",
+        variant === "danger" && "bg-[var(--danger-soft)] text-[var(--danger)] hover:brightness-110",
         className
       )}
       {...props}

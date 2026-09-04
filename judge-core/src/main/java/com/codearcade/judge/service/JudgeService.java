@@ -31,7 +31,14 @@ public class JudgeService {
 
     public JudgeResult judge(Submission submission) {
         Path workspace = null;
-        int totalTests = submission.getTestCases() == null ? 0 : submission.getTestCases().size();
+        int requestedTests = submission.getTestCases() == null ? 0 : submission.getTestCases().size();
+        int totalTests = Math.min(requestedTests, config.getMaxTestCases());
+
+        if (submission.getSourceCode() == null || submission.getSourceCode().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > config.getMaxSourceBytes()) {
+            return new JudgeResult(submission.getId(), Verdict.CE, 0, totalTests, 0, "Source code too large");
+        }
+        int timeLimitMs = Math.min(Math.max(submission.getTimeLimitMs(), 500), 10000);
+        int memoryLimitMb = Math.min(Math.max(submission.getMemoryLimitMb(), 64), 1024);
 
         try {
             workspace = createWorkspace(submission.getId());
@@ -46,9 +53,10 @@ public class JudgeService {
             int passed = 0;
             long maxExecutionTime = 0;
             File workspaceFile = workspace.toFile();
-            List<String> runCommand = compilerService.getRunCommand(submission.getLanguage(), submission.getMemoryLimitMb(), workspaceFile);
+            List<String> runCommand = compilerService.getRunCommand(submission.getLanguage(), memoryLimitMb, workspaceFile);
+            List<TestCase> cases = submission.getTestCases() == null ? List.of() : submission.getTestCases().subList(0, totalTests);
 
-            for (TestCase testCase : submission.getTestCases()) {
+            for (TestCase testCase : cases) {
                 if (functionMode) {
                     writeFunctionDriver(submission, testCase, workspace);
                     if (!compilerService.compile(submission.getLanguage(), workspace.toFile())) {
@@ -58,7 +66,7 @@ public class JudgeService {
                 ExecutionResult executionResult = executionService.execute(
                         runCommand, workspaceFile,
                         functionMode ? "" : testCase.getInput(),
-                        submission.getTimeLimitMs());
+                        timeLimitMs);
 
                 maxExecutionTime = Math.max(maxExecutionTime, executionResult.getExecutionTimeMs());
 
@@ -77,13 +85,19 @@ public class JudgeService {
                 }
 
                 if (executionResult.getExitCode() != 0) {
+                    String message = trimError(executionResult.getError());
+                    // Docker OOM-kill (137) and cgroup kills surface as plain
+                    // non-zero exits; label them so users see MLE, not RE.
+                    if (executionResult.getExitCode() == 137) {
+                        message = "Memory Limit Exceeded";
+                    }
                     return new JudgeResult(
                             submission.getId(),
                             Verdict.RE,
                             passed,
                             totalTests,
                             maxExecutionTime,
-                            trimError(executionResult.getError()),
+                            message,
                             testCase.getInput(),
                             testCase.getExpected(),
                             executionResult.getOutput()

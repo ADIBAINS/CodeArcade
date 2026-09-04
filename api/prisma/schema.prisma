@@ -44,6 +44,11 @@ enum ProblemRequestStatus{
   IN_REVIEW
 }
 
+enum JudgeMode {
+  STDIN
+  FUNCTION
+}
+
 model User {
   id               String            @id @default(cuid())
   name             String
@@ -62,14 +67,14 @@ model Problem {
   id            String       @id @default(cuid())
   title         String
   slug          String       @unique
-  statement     String
-  inputFormat   String
-  outputFormat  String
-  constraints   String
+  statement     String       @db.Text
+  inputFormat   String       @db.Text
+  outputFormat  String       @db.Text
+  constraints   String       @db.Text
   difficulty    Difficulty
   timeLimitMs   Int          @default(2000)
   memoryLimitMb Int          @default(256)
-  judgeMode     String       @default("STDIN")
+  judgeMode     JudgeMode    @default(STDIN)
   functionName  String       @default("solve")
   argumentTypes String       @default("")
   returnType    String       @default("int")
@@ -77,16 +82,20 @@ model Problem {
   submissions   Submission[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
+  @@index([difficulty, createdAt])
 }
 
 model TestCase {
   id        String   @id @default(cuid())
   problemId String
-  input     String
-  expected  String
+  input     String   @db.Text
+  expected  String   @db.Text
   isHidden  Boolean  @default(true)
   problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@index([problemId])
 }
 
 model Submission {
@@ -111,6 +120,9 @@ model Submission {
 
   @@index([status, updatedAt])
   @@index([userId, problemId])
+  @@index([problemId])
+  @@index([userId, createdAt])
+  @@index([verdict])
 }
 
 model LeaderboardEntry {
@@ -123,6 +135,8 @@ model LeaderboardEntry {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([score, solvedCount])
 }
 
 model ProblemRequest {
@@ -140,11 +154,12 @@ model ProblemRequest {
   status       ProblemRequestStatus  @default(PENDING)
   adminNotes   String?               @db.Text 
   reviewedById String?               
-  reviewedBy   User?                 @relation("ReviewedRequests", fields: [reviewedById], references: [id])
+  reviewedBy   User?                 @relation("ReviewedRequests", fields: [reviewedById], references: [id], onDelete: SetNull)
   
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
   @@index([userId])
   @@index([status])
+  @@index([reviewedById])
 }

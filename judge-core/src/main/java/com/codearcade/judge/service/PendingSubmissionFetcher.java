@@ -17,12 +17,18 @@ import java.util.Map;
 public class PendingSubmissionFetcher {
     private final String apiBaseUrl;
     private final String internalToken;
+    private final int requestTimeoutSeconds;
     private final HttpClient httpClient;
 
     public PendingSubmissionFetcher(String apiBaseUrl, String internalToken) {
+        this(apiBaseUrl, internalToken, 5, 10);
+    }
+
+    public PendingSubmissionFetcher(String apiBaseUrl, String internalToken, int connectTimeoutSeconds, int requestTimeoutSeconds) {
         this.apiBaseUrl = apiBaseUrl;
         this.internalToken = internalToken;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        this.requestTimeoutSeconds = Math.max(1, requestTimeoutSeconds);
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(Math.max(1, connectTimeoutSeconds))).build();
     }
 
     public List<Submission> fetchPending(int limit) {
@@ -30,7 +36,7 @@ public class PendingSubmissionFetcher {
             String body = JsonUtil.stringify(Map.of("limit", limit));
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(apiBaseUrl + "/api/internal/judge/pending"))
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(requestTimeoutSeconds))
                     .header("Authorization", "Bearer " + internalToken)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -61,20 +67,31 @@ public class PendingSubmissionFetcher {
 
         List<Submission> submissions = new ArrayList<>();
         for (Object item : items) {
-            Map<String, Object> map = (Map<String, Object>) item;
-            Submission submission = new Submission();
-            submission.setId(stringValue(map.get("id")));
-            submission.setProblemId(stringValue(map.get("problemId")));
-            submission.setLanguage(stringValue(map.get("language")));
-            submission.setSourceCode(stringValue(map.get("sourceCode")));
-            submission.setTimeLimitMs(intValue(map.get("timeLimitMs")));
-            submission.setMemoryLimitMb(intValue(map.get("memoryLimitMb")));
-            submission.setJudgeMode(stringValue(map.get("judgeMode")));
-            submission.setFunctionName(stringValue(map.get("functionName")));
-            submission.setArgumentTypes(stringValue(map.get("argumentTypes")));
-            submission.setReturnType(stringValue(map.get("returnType")));
-            submission.setTestCases(toTestCases(map.get("testCases")));
-            submissions.add(submission);
+            try {
+                if (!(item instanceof Map<?, ?> raw)) {
+                    continue;
+                }
+                Map<String, Object> map = (Map<String, Object>) raw;
+                Submission submission = new Submission();
+                submission.setId(stringValue(map.get("id")));
+                submission.setProblemId(stringValue(map.get("problemId")));
+                submission.setLanguage(stringValue(map.get("language")));
+                submission.setSourceCode(stringValue(map.get("sourceCode")));
+                submission.setTimeLimitMs(clampedInt(map.get("timeLimitMs"), 500, 10000, 2000));
+                submission.setMemoryLimitMb(clampedInt(map.get("memoryLimitMb"), 64, 1024, 256));
+                submission.setJudgeMode(stringValue(map.get("judgeMode")));
+                submission.setFunctionName(stringValue(map.get("functionName")));
+                submission.setArgumentTypes(stringValue(map.get("argumentTypes")));
+                submission.setReturnType(stringValue(map.get("returnType")));
+                submission.setTestCases(toTestCases(map.get("testCases")));
+                if (submission.getId().isBlank() || submission.getSourceCode().isBlank()) {
+                    continue;
+                }
+                submissions.add(submission);
+            } catch (RuntimeException error) {
+                // Skip poison items without killing the whole fetch loop.
+                System.err.println("Skipping malformed submission payload: " + error.getMessage());
+            }
         }
         return submissions;
     }
@@ -87,8 +104,14 @@ public class PendingSubmissionFetcher {
 
         List<TestCase> testCases = new ArrayList<>();
         for (Object item : items) {
-            Map<String, Object> map = (Map<String, Object>) item;
-            testCases.add(new TestCase(stringValue(map.get("input")), stringValue(map.get("expected"))));
+            try {
+                if (!(item instanceof Map<?, ?> raw)) {
+                    continue;
+                }
+                Map<String, Object> map = (Map<String, Object>) raw;
+                testCases.add(new TestCase(stringValue(map.get("input")), stringValue(map.get("expected"))));
+            } catch (RuntimeException ignored) {
+            }
         }
         return testCases;
     }
@@ -101,6 +124,18 @@ public class PendingSubmissionFetcher {
         if (value instanceof Number number) {
             return number.intValue();
         }
-        return Integer.parseInt(String.valueOf(value));
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException error) {
+            return 0;
+        }
+    }
+
+    private int clampedInt(Object value, int min, int max, int fallback) {
+        int parsed = intValue(value);
+        if (parsed < min || parsed > max) {
+            return fallback;
+        }
+        return parsed;
     }
 }

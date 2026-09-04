@@ -19,7 +19,7 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 
 export const mine = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const requests = await getUserRequests(userId);
+  const requests = await getUserRequests(userId, Number(req.query.page ?? 1), Number(req.query.limit ?? 20));
   res.json(requests);
 });
 
@@ -35,7 +35,7 @@ export const detail = asyncHandler(async (req: Request, res: Response) => {
 
 export const listAll = asyncHandler(async (req: Request, res: Response) => {
   const status = req.query.status as string | undefined;
-  const requests = await getAllRequests(status);
+  const requests = await getAllRequests(status, Number(req.query.page ?? 1), Number(req.query.limit ?? 20));
   res.json(requests);
 });
 

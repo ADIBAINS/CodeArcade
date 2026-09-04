@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../utils/pagination";
+
+export const problemListQuerySchema = z.object({
+  query: paginationQuerySchema.partial().optional()
+});
 
 export const problemParamsSchema = z.object({
   params: z.object({
@@ -21,10 +26,10 @@ export const createProblemSchema = z.object({
       .max(120)
       .regex(/^[a-z0-9-]+$/, "Slug must contain lowercase letters, numbers and hyphens only")
       .optional(),
-    statement: z.string().min(20),
-    inputFormat: z.string().min(5),
-    outputFormat: z.string().min(5),
-    constraints: z.string().min(5),
+    statement: z.string().min(20).max(50000),
+    inputFormat: z.string().min(5).max(10000),
+    outputFormat: z.string().min(5).max(10000),
+    constraints: z.string().min(5).max(10000),
     difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
     timeLimitMs: z.number().int().min(500).max(10000).default(2000),
     memoryLimitMb: z.number().int().min(64).max(1024).default(256)

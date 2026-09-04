@@ -17,6 +17,12 @@ public class JudgeConfig {
     private final String dockerUser;
     private final String dockerCpuLimit;
     private final int compilerMemoryMb;
+    private final int compileTimeoutSeconds;
+    private final int httpConnectTimeoutSeconds;
+    private final int httpRequestTimeoutSeconds;
+    private final int maxSourceBytes;
+    private final int maxTestCases;
+    private final int maxOutputBytes;
 
     public JudgeConfig(
             String apiBaseUrl,
@@ -32,7 +38,13 @@ public class JudgeConfig {
             String cppDockerImage,
             String dockerUser,
             String dockerCpuLimit,
-            int compilerMemoryMb
+            int compilerMemoryMb,
+            int compileTimeoutSeconds,
+            int httpConnectTimeoutSeconds,
+            int httpRequestTimeoutSeconds,
+            int maxSourceBytes,
+            int maxTestCases,
+            int maxOutputBytes
     ) {
         this.apiBaseUrl = apiBaseUrl;
         this.internalToken = internalToken;
@@ -48,6 +60,12 @@ public class JudgeConfig {
         this.dockerUser = dockerUser;
         this.dockerCpuLimit = dockerCpuLimit;
         this.compilerMemoryMb = compilerMemoryMb;
+        this.compileTimeoutSeconds = compileTimeoutSeconds;
+        this.httpConnectTimeoutSeconds = httpConnectTimeoutSeconds;
+        this.httpRequestTimeoutSeconds = httpRequestTimeoutSeconds;
+        this.maxSourceBytes = maxSourceBytes;
+        this.maxTestCases = maxTestCases;
+        this.maxOutputBytes = maxOutputBytes;
     }
 
     public static JudgeConfig fromEnvironment() {
@@ -58,21 +76,40 @@ public class JudgeConfig {
             throw new IllegalStateException("JUDGE_EXECUTION_MODE=docker is required in production");
         }
 
+        int workerCount = intEnv("JUDGE_WORKER_COUNT", 3);
+        int pollIntervalMs = intEnv("JUDGE_POLL_INTERVAL_MS", 3000);
+        int fetchLimit = intEnv("JUDGE_FETCH_LIMIT", 5);
+        if (workerCount <= 0 || workerCount > 32) {
+            throw new IllegalStateException("JUDGE_WORKER_COUNT must be between 1 and 32");
+        }
+        if (pollIntervalMs < 500 || pollIntervalMs > 60000) {
+            throw new IllegalStateException("JUDGE_POLL_INTERVAL_MS must be between 500 and 60000");
+        }
+        if (fetchLimit <= 0 || fetchLimit > 50) {
+            throw new IllegalStateException("JUDGE_FETCH_LIMIT must be between 1 and 50");
+        }
+
         return new JudgeConfig(
                 production ? requiredEnv("API_BASE_URL") : env("API_BASE_URL", "http://localhost:4000"),
                 production ? requiredSecret("INTERNAL_JUDGE_TOKEN", "judge-secret-token", "change-me-use-openssl-rand-hex-32") : env("INTERNAL_JUDGE_TOKEN", "judge-secret-token"),
-                intEnv("JUDGE_WORKER_COUNT", 3),
-                intEnv("JUDGE_POLL_INTERVAL_MS", 3000),
-                intEnv("JUDGE_FETCH_LIMIT", 5),
-                Path.of(env("JUDGE_WORKSPACE_ROOT", "workspaces")),
-                Path.of(env("JUDGE_DOCKER_WORKSPACE_ROOT", env("JUDGE_WORKSPACE_ROOT", "workspaces"))),
+                workerCount,
+                pollIntervalMs,
+                fetchLimit,
+                Path.of(env("JUDGE_WORKSPACE_ROOT", "/app/workspaces")).toAbsolutePath(),
+                Path.of(env("JUDGE_DOCKER_WORKSPACE_ROOT", env("JUDGE_WORKSPACE_ROOT", "/app/workspaces"))).toAbsolutePath(),
                 executionMode,
                 env("JUDGE_DOCKER_BINARY", "docker"),
                 env("JUDGE_JAVA_IMAGE", "eclipse-temurin:17-jdk"),
                 env("JUDGE_CPP_IMAGE", "gcc:14"),
                 env("JUDGE_DOCKER_USER", detectDockerUser()),
                 env("JUDGE_DOCKER_CPUS", "1"),
-                intEnv("JUDGE_COMPILER_MEMORY_MB", 512)
+                intEnv("JUDGE_COMPILER_MEMORY_MB", 512),
+                intEnv("JUDGE_COMPILE_TIMEOUT_SECONDS", 20),
+                intEnv("JUDGE_HTTP_CONNECT_TIMEOUT_SECONDS", 5),
+                intEnv("JUDGE_HTTP_REQUEST_TIMEOUT_SECONDS", 10),
+                intEnv("JUDGE_MAX_SOURCE_BYTES", 20000),
+                intEnv("JUDGE_MAX_TESTCASES", 100),
+                intEnv("JUDGE_MAX_OUTPUT_BYTES", 1024 * 1024)
         );
     }
 
@@ -104,7 +141,11 @@ public class JudgeConfig {
         if (value == null || value.isBlank()) {
             return fallback;
         }
-        return Integer.parseInt(value);
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException error) {
+            throw new IllegalStateException(key + " must be an integer, got: " + value);
+        }
     }
 
     private static boolean isProduction() {
@@ -188,5 +229,29 @@ public class JudgeConfig {
 
     public int getCompilerMemoryMb() {
         return compilerMemoryMb;
+    }
+
+    public int getCompileTimeoutSeconds() {
+        return compileTimeoutSeconds;
+    }
+
+    public int getHttpConnectTimeoutSeconds() {
+        return httpConnectTimeoutSeconds;
+    }
+
+    public int getHttpRequestTimeoutSeconds() {
+        return httpRequestTimeoutSeconds;
+    }
+
+    public int getMaxSourceBytes() {
+        return maxSourceBytes;
+    }
+
+    public int getMaxTestCases() {
+        return maxTestCases;
+    }
+
+    public int getMaxOutputBytes() {
+        return maxOutputBytes;
     }
 }

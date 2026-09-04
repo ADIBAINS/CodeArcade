@@ -9,7 +9,8 @@ const SCORE_BY_DIFFICULTY: Record<Difficulty, number> = {
 };
 
 async function withSerializableRetry<T>(operation: () => Promise<T>) {
-  const maxAttempts = Number(process.env.JUDGE_RESULT_RETRY_ATTEMPTS ?? 3);
+  const raw = Number(process.env.JUDGE_RESULT_RETRY_ATTEMPTS ?? 3);
+  const maxAttempts = Number.isSafeInteger(raw) ? Math.min(Math.max(raw, 1), 10) : 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -31,8 +32,10 @@ async function withSerializableRetry<T>(operation: () => Promise<T>) {
 }
 
 export async function fetchPendingSubmissions(limit: number) {
+  const safeLimit = Number.isSafeInteger(limit) ? Math.min(Math.max(limit, 1), 50) : 5;
   const staleThresholdMs = Number(process.env.JUDGE_STALE_THRESHOLD_MS ?? 60000);
-  const staleBefore = new Date(Date.now() - staleThresholdMs);
+  const safeStaleMs = Number.isSafeInteger(staleThresholdMs) ? Math.min(Math.max(staleThresholdMs, 5000), 3600000) : 60000;
+  const staleBefore = new Date(Date.now() - safeStaleMs);
 
   return prisma.$transaction(async (tx) => {
     const candidates = await tx.submission.findMany({
@@ -43,7 +46,7 @@ export async function fetchPendingSubmissions(limit: number) {
         ]
       },
       orderBy: { createdAt: "asc" },
-      take: limit,
+      take: safeLimit,
       select: { id: true }
     });
 
@@ -53,10 +56,22 @@ export async function fetchPendingSubmissions(limit: number) {
       return [];
     }
 
-    await tx.submission.updateMany({
-      where: { id: { in: ids } },
+    // Conditional claim: only rows still PENDING/stale-RUNNING are flipped.
+    // Concurrent claimants race here; only the winner's ids proceed.
+    const claimed = await tx.submission.updateMany({
+      where: {
+        id: { in: ids },
+        OR: [
+          { status: "PENDING" },
+          { status: "RUNNING", updatedAt: { lt: staleBefore } }
+        ]
+      },
       data: { status: "RUNNING" }
     });
+
+    if (claimed.count === 0) {
+      return [];
+    }
 
     const submissions = await tx.submission.findMany({
       where: { id: { in: ids } },
@@ -110,7 +125,20 @@ export async function saveJudgeResult(input: {
       throw new ApiError(404, "Submission not found");
     }
 
+    // Only terminal transitions from an active state are accepted. Replays of
+    // an already-completed verdict are acknowledged idempotently without
+    // touching the leaderboard twice.
+    if (submission.status === "COMPLETED") {
+      if (submission.verdict === input.verdict) {
+        return submission;
+      }
+      // Allow AC<->non-AC corrections below, but never resurrect PENDING.
+    } else if (submission.status !== "PENDING" && submission.status !== "RUNNING") {
+      throw new ApiError(409, `Submission is already ${submission.status}`);
+    }
+
     const wasAlreadyAccepted = submission.verdict === "AC";
+    const willBeAccepted = input.verdict === "AC";
     const acceptedBeforeForProblem = await tx.submission.count({
       where: {
         userId: submission.userId,
@@ -135,7 +163,7 @@ export async function saveJudgeResult(input: {
       }
     });
 
-    if (input.verdict === "AC" && !wasAlreadyAccepted) {
+    if (willBeAccepted && !wasAlreadyAccepted) {
       const firstSolveForProblem = acceptedBeforeForProblem === 0;
       const scoreDelta = firstSolveForProblem ? SCORE_BY_DIFFICULTY[submission.problem.difficulty] : 0;
 
@@ -151,6 +179,27 @@ export async function saveJudgeResult(input: {
           totalAccepted: 1,
           solvedCount: firstSolveForProblem ? 1 : 0,
           score: scoreDelta
+        }
+      });
+    } else if (!willBeAccepted && wasAlreadyAccepted) {
+      // Downgrade correction (e.g. re-judge AC -> WA): roll back the earlier
+      // increment so totals/scores do not stay inflated.
+      const otherAccepted = await tx.submission.count({
+        where: {
+          userId: submission.userId,
+          problemId: submission.problemId,
+          verdict: "AC",
+          id: { not: submission.id }
+        }
+      });
+      const hadScore = otherAccepted === 0;
+      const scoreDelta = hadScore ? SCORE_BY_DIFFICULTY[submission.problem.difficulty] : 0;
+      await tx.leaderboardEntry.updateMany({
+        where: { userId: submission.userId },
+        data: {
+          totalAccepted: { decrement: 1 },
+          solvedCount: { decrement: hadScore ? 1 : 0 },
+          score: { decrement: scoreDelta }
         }
       });
     }

@@ -20,16 +20,44 @@ public class JudgeWorker implements Runnable {
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
+            Submission current = null;
             try {
-                Submission submission = submissionQueue.takeSubmission();
-                JudgeResult result = judgeService.judge(submission);
+                current = submissionQueue.takeSubmission();
+                JudgeResult result = judgeService.judge(current);
                 resultReporter.report(result);
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
+                if (current != null) {
+                    // Best-effort terminal report so the backend does not hang
+                    // on RUNNING forever; stale-timeout requeues if this fails.
+                    try {
+                        resultReporter.report(new JudgeResult(current.getId(), com.codearcade.judge.model.Verdict.RE, 0, testCount(current), 0, "Judge worker interrupted"));
+                    } catch (RuntimeException ignored) {
+                    }
+                }
             } catch (Exception error) {
-                error.printStackTrace();
+                System.err.println("Judge worker failure: " + error.getMessage());
+                if (current != null) {
+                    try {
+                        resultReporter.report(new JudgeResult(current.getId(), com.codearcade.judge.model.Verdict.RE, 0, testCount(current), 0, "Judge system error"));
+                    } catch (RuntimeException ignored) {
+                    }
+                }
+            } catch (Error error) {
+                System.err.println("Judge worker fatal error: " + error.getMessage());
+                if (current != null) {
+                    try {
+                        resultReporter.report(new JudgeResult(current.getId(), com.codearcade.judge.model.Verdict.RE, 0, testCount(current), 0, "Judge system error"));
+                    } catch (RuntimeException ignored) {
+                    }
+                }
+                throw error;
             }
         }
+    }
+
+    private static int testCount(Submission submission) {
+        return submission != null && submission.getTestCases() != null ? submission.getTestCases().size() : 0;
     }
 }
 

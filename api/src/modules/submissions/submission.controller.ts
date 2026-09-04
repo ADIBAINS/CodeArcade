@@ -11,9 +11,9 @@ export const detail = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const mine = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await listMySubmissions(req.user!.id));
+  res.json(await listMySubmissions(req.user!.id, Number(req.query.page ?? 1), Number(req.query.limit ?? 20)));
 });
 
 export const byProblem = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await listProblemSubmissions(req.params.problemId as string, { id: req.user!.id, role: req.user!.role }));
+  res.json(await listProblemSubmissions(req.params.problemId as string, { id: req.user!.id, role: req.user!.role }, Number(req.query.page ?? 1), Number(req.query.limit ?? 20)));
 });

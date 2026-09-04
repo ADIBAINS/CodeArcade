@@ -1,22 +1,28 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { paginate, skipTake } from "../../utils/pagination";
 import { slugify } from "../../utils/slugify";
 
-export async function listProblems() {
-  return prisma.problem.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      difficulty: true,
-      timeLimitMs: true,
-      memoryLimitMb: true,
-      createdAt: true,
-      _count: { select: { submissions: true } }
-    }
-  });
+export async function listProblems(page = 1, limit = 20) {
+  const [items, total] = await Promise.all([
+    prisma.problem.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        difficulty: true,
+        timeLimitMs: true,
+        memoryLimitMb: true,
+        createdAt: true,
+        _count: { select: { submissions: true } }
+      },
+      ...skipTake(page, limit)
+    }),
+    prisma.problem.count()
+  ]);
+  return paginate(items, total, page, limit);
 }
 
 export async function countProblems() {
@@ -44,12 +50,26 @@ export async function getProblemBySlug(slug: string, includeHidden: boolean) {
 export async function createProblem(input: Prisma.ProblemCreateInput) {
   const slug = input.slug || slugify(input.title);
 
-  return prisma.problem.create({
-    data: {
-      ...input,
-      slug
+  try {
+    return await prisma.problem.create({
+      data: {
+        ...input,
+        slug
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new ApiError(409, `A problem with slug "${slug}" already exists`);
     }
-  });
+    throw error;
+  }
+}
+
+function toNotFound(error: unknown, message: string): never {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+    throw new ApiError(404, message);
+  }
+  throw error;
 }
 
 export async function updateProblem(id: string, input: Prisma.ProblemUpdateInput) {
@@ -58,8 +78,8 @@ export async function updateProblem(id: string, input: Prisma.ProblemUpdateInput
       where: { id },
       data: input
     });
-  } catch {
-    throw new ApiError(404, "Problem not found");
+  } catch (error) {
+    toNotFound(error, "Problem not found");
   }
 }
 
@@ -67,7 +87,7 @@ export async function deleteProblem(id: string) {
   try {
     await prisma.problem.delete({ where: { id } });
     return { deleted: true };
-  } catch {
-    throw new ApiError(404, "Problem not found");
+  } catch (error) {
+    toNotFound(error, "Problem not found");
   }
 }

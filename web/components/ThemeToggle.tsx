@@ -23,11 +23,11 @@ export function ThemeToggle() {
 
   return (
     <button
-      className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] transition hover:border-[var(--line-strong)] hover:text-[var(--text)]"
+      className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-lg text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-strong)]"
       title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       onClick={toggleTheme}
     >
-      {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
     </button>
   );
 }

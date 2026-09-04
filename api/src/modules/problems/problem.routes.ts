@@ -3,11 +3,12 @@ import { adminMiddleware } from "../../middlewares/admin.middleware";
 import { authMiddleware, optionalAuthMiddleware } from "../../middlewares/auth.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { count, create, detail, list, remove, update } from "./problem.controller";
-import { createProblemSchema, problemIdParamsSchema, problemParamsSchema, updateProblemSchema } from "./problem.schema";
+import { createProblemSchema, problemIdParamsSchema, problemListQuerySchema, problemParamsSchema, updateProblemSchema } from "./problem.schema";
 
 export const problemRoutes = Router();
 
-problemRoutes.get("/", list);
+problemRoutes.get("/", validate(problemListQuerySchema), list);
+// NOTE: /count must stay before /:slug or "count" would be treated as a slug.
 problemRoutes.get("/count", count);
 problemRoutes.get("/:slug", optionalAuthMiddleware, validate(problemParamsSchema), detail);
 problemRoutes.post("/", authMiddleware, adminMiddleware, validate(createProblemSchema), create);

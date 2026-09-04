@@ -6,24 +6,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        arcade: {
-          bg: "var(--bg)",
-          elevated: "var(--bg-elevated)",
-          surface: "var(--surface)",
-          soft: "var(--surface-soft)",
-          muted: "var(--surface-muted)",
-          line: "var(--line)",
-          text: "var(--text)",
-          strong: "var(--text-strong)",
-          faint: "var(--muted)",
-          accent: "var(--accent)",
-          accentStrong: "var(--accent-strong)",
-          accentSoft: "var(--accent-soft)",
-        },
-      },
-      boxShadow: {
-        arcade: "var(--shadow-md)",
-        glow: "0 0 0 1px rgba(45,212,191,.35), 0 8px 40px rgba(45,212,191,.25)",
+        brand: "var(--accent)",
+        easy: "var(--easy)",
+        med: "var(--medium)",
+        hard: "var(--hard)",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],

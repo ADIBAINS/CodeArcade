@@ -177,8 +177,15 @@ public class JsonUtil {
                     case 'r' -> builder.append('\r');
                     case 't' -> builder.append('\t');
                     case 'u' -> {
+                        if (index + 4 > json.length()) {
+                            throw new IllegalArgumentException("Invalid JSON unicode escape at position " + (index - 2));
+                        }
                         String hex = json.substring(index, index + 4);
-                        builder.append((char) Integer.parseInt(hex, 16));
+                        try {
+                            builder.append((char) Integer.parseInt(hex, 16));
+                        } catch (NumberFormatException error) {
+                            throw new IllegalArgumentException("Invalid JSON unicode escape: \\u" + hex);
+                        }
                         index += 4;
                     }
                     default -> throw new IllegalArgumentException("Invalid JSON escape: \\" + escaped);
@@ -216,13 +223,30 @@ public class JsonUtil {
             }
 
             String value = json.substring(start, index);
+            if (value.isEmpty() || "-".equals(value)) {
+                throw new IllegalArgumentException("Invalid JSON number at position " + start);
+            }
             // Do not use a numeric ternary here: Java promotes the Long branch
             // to Double, which turns integer function arguments into values
             // such as 2.0 and makes generated Java drivers fail to compile.
             if (decimal) {
-                return Double.parseDouble(value);
+                try {
+                    return Double.parseDouble(value);
+                } catch (NumberFormatException error) {
+                    throw new IllegalArgumentException("Invalid JSON number at position " + start);
+                }
             }
-            return Long.parseLong(value);
+            try {
+                return Long.parseLong(value);
+            } catch (NumberFormatException error) {
+                // Fall back to double for out-of-long-range integers rather
+                // than killing the whole fetch loop.
+                try {
+                    return Double.parseDouble(value);
+                } catch (NumberFormatException nested) {
+                    throw new IllegalArgumentException("Invalid JSON number at position " + start);
+                }
+            }
         }
 
         private Object parseLiteral(String literal, Object value) {

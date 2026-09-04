@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../utils/pagination";
 
 export const createSubmissionSchema = z.object({
   body: z.object({
@@ -17,6 +18,11 @@ export const submissionIdParamsSchema = z.object({
 export const problemSubmissionsParamsSchema = z.object({
   params: z.object({
     problemId: z.string().min(1)
-  })
+  }),
+  query: paginationQuerySchema.partial().optional()
+});
+
+export const mySubmissionsQuerySchema = z.object({
+  query: paginationQuerySchema.partial().optional()
 });
 

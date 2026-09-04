@@ -1,9 +1,25 @@
 import "dotenv/config";
-import { app } from "./app";
+import { closeApp, app } from "./app";
+import { getEnv } from "./config/env";
 
-const port = Number(process.env.PORT ?? 4000);
+const env = getEnv();
 
-app.listen(port, () => {
-  console.log(`CodeArcade API listening on http://localhost:${port}`);
+const server = app.listen(env.PORT, () => {
+  console.log(`CodeArcade API listening on http://localhost:${env.PORT}`);
 });
+
+function shutdown(signal: string) {
+  console.log(`Received ${signal}, shutting down gracefully`);
+  server.close(async () => {
+    try {
+      await closeApp();
+    } finally {
+      process.exit(0);
+    }
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 

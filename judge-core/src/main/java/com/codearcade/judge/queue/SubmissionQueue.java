@@ -6,10 +6,22 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SubmissionQueue {
-    private final BlockingQueue<Submission> queue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Submission> queue;
 
-    public void addSubmission(Submission submission) {
-        queue.offer(submission);
+    public SubmissionQueue() {
+        this(256);
+    }
+
+    public SubmissionQueue(int capacity) {
+        this.queue = new LinkedBlockingQueue<>(Math.max(1, capacity));
+    }
+
+    public boolean addSubmission(Submission submission) {
+        return queue.offer(submission);
+    }
+
+    public boolean offerSubmission(Submission submission, long timeoutMs) throws InterruptedException {
+        return queue.offer(submission, timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     public Submission takeSubmission() throws InterruptedException {

@@ -1,11 +1,12 @@
 "use client";
 
-import { Filter, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { SubmissionRow, SubmissionTable } from "../../components/SubmissionTable";
 import { ArcadeButton } from "../../components/ui/ArcadeButton";
 import { CardSkeleton, EmptyState, PageHead } from "../../components/ui/PageHead";
-import { apiRequest } from "../../lib/api";
+import { Pager } from "../../components/ui/Pager";
+import { EMPTY_META, apiList, type PageMeta } from "../../lib/api";
 import { cn } from "../../lib/cn";
 
 export default function SubmissionsPage() {
@@ -13,12 +14,17 @@ export default function SubmissionsPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PageMeta>(EMPTY_META);
 
-  async function load() {
+  async function load(nextPage = page) {
     setMessage("");
     setLoading(true);
     try {
-      setSubmissions(await apiRequest<SubmissionRow[]>("/api/users/me/submissions"));
+      const { items, meta } = await apiList<SubmissionRow>(`/api/users/me/submissions?page=${nextPage}&limit=20`, {}, nextPage, 20);
+      setSubmissions(items);
+      setMeta(meta);
+      setPage(meta.page);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to load submissions");
     } finally {
@@ -27,14 +33,12 @@ export default function SubmissionsPage() {
   }
 
   useEffect(() => {
-    load();
+    load(1);
   }, []);
 
   const visible = useMemo(() => {
     if (filter === "ALL") return submissions;
-    return submissions.filter(
-      (s) => (s.verdict ?? s.status ?? "").toUpperCase() === filter
-    );
+    return submissions.filter((s) => (s.verdict ?? s.status ?? "").toUpperCase() === filter);
   }, [submissions, filter]);
 
   const verdicts = useMemo(() => {
@@ -47,26 +51,25 @@ export default function SubmissionsPage() {
       <PageHead
         eyebrow="Your runs"
         title="Submissions"
-        description="Every run with its verdict, test progress and timing. Click through for the full fault breakdown."
+        description="Every run with its verdict, test progress and timing."
         actions={
-          <ArcadeButton onClick={load}>
-            <RefreshCw size={15} /> Refresh
+          <ArcadeButton onClick={() => load(page)}>
+            <RefreshCw size={14} /> Refresh
           </ArcadeButton>
         }
       />
 
       {submissions.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <Filter size={14} className="text-[var(--muted)]" />
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
           {verdicts.map((v) => (
             <button
               key={v}
               onClick={() => setFilter(v)}
               className={cn(
-                "rounded-xl border px-3 py-1.5 text-[11px] font-black tracking-wider transition",
+                "shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[12px] font-semibold transition",
                 filter === v
-                  ? "border-teal-300/40 bg-teal-400/10 text-teal-300"
-                  : "border-[var(--line)] text-[var(--muted)] hover:text-[var(--text)]"
+                  ? "bg-[var(--surface-soft)] text-[var(--text-strong)]"
+                  : "text-[var(--muted)] hover:text-[var(--text-strong)]"
               )}
             >
               {v}
@@ -76,25 +79,23 @@ export default function SubmissionsPage() {
       )}
 
       {message && (
-        <div className="mb-5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300">
+        <div className="mb-4 rounded-lg bg-[var(--danger-soft)] px-4 py-2.5 text-sm font-medium text-[var(--danger)]">
           {message}
         </div>
       )}
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[0, 1, 2, 3].map((i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
       ) : visible.length === 0 ? (
-        <EmptyState
-          title="No submissions yet"
-          hint="Solve a problem to see your first verdict here."
-        />
+        <EmptyState title="No submissions yet" hint="Solve a problem to see your first verdict here." />
       ) : (
         <SubmissionTable submissions={visible} />
       )}
+      {!loading && visible.length > 0 && <Pager meta={meta} onPage={load} />}
     </main>
   );
 }

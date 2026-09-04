@@ -136,7 +136,7 @@ public final class FunctionAdapter {
             return "new " + elementType + "[]{" + String.join(", ", literals) + "}";
         }
         if ("String".equals(type)) return JsonUtil.stringify(String.valueOf(value));
-        if ("char".equals(type)) return "'" + String.valueOf(value).replace("'", "\\'") + "'";
+        if ("char".equals(type)) return "'" + escapeJavaChar(String.valueOf(value)) + "'";
         return JsonUtil.stringify(value);
     }
 
@@ -170,5 +170,17 @@ public final class FunctionAdapter {
     private static List<?> list(Object value) {
         if (!(value instanceof List<?> list)) throw new IllegalArgumentException("Expected an array argument");
         return list;
+    }
+
+    private static String escapeJavaChar(String value) {
+        String single = value.isEmpty() ? "" : value.substring(0, 1);
+        return switch (single) {
+            case "'" -> "\\'";
+            case "\\" -> "\\\\";
+            case "\n" -> "\\n";
+            case "\r" -> "\\r";
+            case "\t" -> "\\t";
+            default -> single;
+        };
     }
 }

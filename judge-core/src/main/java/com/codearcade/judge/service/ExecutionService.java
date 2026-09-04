@@ -14,37 +14,53 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class ExecutionService {
+    private static final ExecutorService STREAM_POOL = Executors.newCachedThreadPool(r -> {
+        Thread thread = new Thread(r, "judge-exec-io");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     public ExecutionResult execute(List<String> command, File workspace, String input, int timeLimitMs)
             throws IOException, InterruptedException {
-        long start = System.currentTimeMillis();
+        int safeLimitMs = Math.min(Math.max(timeLimitMs, 500), 10000);
+        long start = System.nanoTime();
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(workspace);
         Process process = builder.start();
 
-        ExecutorService streamPool = Executors.newFixedThreadPool(3);
-        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getInputStream()), streamPool);
-        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getErrorStream()), streamPool);
-        CompletableFuture<Void> stdin = CompletableFuture.runAsync(() -> writeInput(process.getOutputStream(), input), streamPool);
+        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getInputStream()), STREAM_POOL);
+        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getErrorStream()), STREAM_POOL);
+        CompletableFuture<Void> stdin = CompletableFuture.runAsync(() -> writeInput(process.getOutputStream(), input), STREAM_POOL);
 
-        boolean completed = process.waitFor(timeLimitMs, TimeUnit.MILLISECONDS);
-        long end = System.currentTimeMillis();
+        boolean completed = process.waitFor(safeLimitMs, TimeUnit.MILLISECONDS);
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 
         if (!completed) {
             process.destroyForcibly();
             process.waitFor(2, TimeUnit.SECONDS);
             stdin.cancel(true);
-            streamPool.shutdownNow();
-            return new ExecutionResult(true, -1, "", "Time Limit Exceeded", end - start);
+            stdout.cancel(true);
+            stderr.cancel(true);
+            return new ExecutionResult(true, -1, "", "Time Limit Exceeded", Math.max(elapsedMs, safeLimitMs));
         }
 
         // The input task closes stdin after writing. A closed stdin is important
         // for programs that read until EOF instead of reading a fixed count.
-        stdin.join();
-        String output = stdout.join();
-        String error = stderr.join();
-        streamPool.shutdownNow();
+        try {
+            stdin.join();
+        } catch (RuntimeException ignored) {
+        }
+        String output;
+        String error;
+        try {
+            output = stdout.join();
+            error = stderr.join();
+        } catch (RuntimeException joinError) {
+            output = "";
+            error = "Judge I/O error";
+        }
 
-        return new ExecutionResult(false, process.exitValue(), output, error, end - start);
+        return new ExecutionResult(false, process.exitValue(), output, error, elapsedMs);
     }
 
     private void writeInput(OutputStream outputStream, String input) {

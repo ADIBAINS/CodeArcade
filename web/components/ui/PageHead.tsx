@@ -12,17 +12,17 @@ export function PageHead({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="max-w-2xl">
         {eyebrow && (
-          <span className="mb-3 inline-flex min-h-[28px] items-center rounded-full border border-teal-300/30 bg-teal-400/10 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-teal-300">
+          <span className="mb-2 inline-flex min-h-[26px] items-center rounded-md bg-[var(--surface-soft)] px-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--muted)]">
             {eyebrow}
           </span>
         )}
-        <h1 className="text-glow text-4xl font-black tracking-tight text-[var(--text-strong)] sm:text-5xl">
+        <h1 className="text-[1.75rem] font-bold tracking-tight text-[var(--text-strong)]">
           {title}
         </h1>
-        {description && <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">{description}</p>}
+        {description && <p className="mt-2 text-[14px] leading-relaxed text-[var(--muted)]">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -39,8 +39,8 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="glass rounded-2xl px-6 py-12 text-center">
-      <p className="text-lg font-extrabold text-[var(--text-strong)]">{title}</p>
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-6 py-12 text-center">
+      <p className="text-[15px] font-semibold text-[var(--text-strong)]">{title}</p>
       {hint && <p className="mx-auto mt-2 max-w-md text-sm text-[var(--muted)]">{hint}</p>}
       {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
@@ -53,7 +53,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function CardSkeleton() {
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
       <Skeleton className="h-6 w-2/3" />
       <Skeleton className="mt-3 h-4 w-full" />
       <Skeleton className="mt-2 h-4 w-5/6" />

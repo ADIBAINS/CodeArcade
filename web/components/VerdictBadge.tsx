@@ -1,22 +1,22 @@
 import { cn } from "../lib/cn";
 
 const VERDICT_STYLE: Record<string, string> = {
-  AC: "border-emerald-300/30 bg-emerald-400/10 text-emerald-300",
-  ACCEPTED: "border-emerald-300/30 bg-emerald-400/10 text-emerald-300",
-  WA: "border-red-400/30 bg-red-500/10 text-red-300",
-  WRONG_ANSWER: "border-red-400/30 bg-red-500/10 text-red-300",
-  TLE: "border-amber-300/30 bg-amber-400/10 text-amber-300",
-  TIME_LIMIT_EXCEEDED: "border-amber-300/30 bg-amber-400/10 text-amber-300",
-  CE: "border-orange-400/30 bg-orange-500/10 text-orange-300",
-  RE: "border-purple-300/30 bg-purple-500/10 text-purple-300",
-  PENDING: "border-sky-300/30 bg-sky-400/10 text-sky-300",
-  RUNNING: "border-sky-300/30 bg-sky-400/10 text-sky-300",
-  JUDGING: "border-sky-300/30 bg-sky-400/10 text-sky-300",
+  AC: "text-[var(--success)] bg-[var(--success-soft)]",
+  ACCEPTED: "text-[var(--success)] bg-[var(--success-soft)]",
+  WA: "text-[var(--danger)] bg-[var(--danger-soft)]",
+  WRONG_ANSWER: "text-[var(--danger)] bg-[var(--danger-soft)]",
+  TLE: "text-[var(--warning)] bg-[var(--warning-soft)]",
+  TIME_LIMIT_EXCEEDED: "text-[var(--warning)] bg-[var(--warning-soft)]",
+  CE: "text-[var(--danger)] bg-[var(--danger-soft)]",
+  RE: "text-[var(--danger)] bg-[var(--danger-soft)]",
+  PENDING: "text-[var(--info)] bg-[var(--info-soft)]",
+  RUNNING: "text-[var(--info)] bg-[var(--info-soft)]",
+  JUDGING: "text-[var(--info)] bg-[var(--info-soft)]",
 };
 
 export function verdictTone(label: string): string {
   const key = label.toUpperCase().replace(/\s+/g, "_");
-  return VERDICT_STYLE[key] ?? "border-[var(--line-strong)] bg-[var(--surface-muted)] text-[var(--muted)]";
+  return VERDICT_STYLE[key] ?? "text-[var(--muted)] bg-[var(--surface-soft)]";
 }
 
 export function VerdictBadge({ verdict, status }: { verdict?: string | null; status?: string }) {
@@ -25,7 +25,7 @@ export function VerdictBadge({ verdict, status }: { verdict?: string | null; sta
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px] font-semibold",
         verdictTone(label)
       )}
     >

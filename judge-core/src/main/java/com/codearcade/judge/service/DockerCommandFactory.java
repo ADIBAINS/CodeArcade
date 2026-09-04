@@ -14,7 +14,7 @@ public class DockerCommandFactory {
     }
 
     public List<String> compileCommand(String language, File workspace) {
-        int memoryLimitMb = Math.max(config.getCompilerMemoryMb(), 256);
+        int memoryLimitMb = Math.min(Math.max(config.getCompilerMemoryMb(), 256), 1024);
         String image = imageFor(language);
         List<String> languageCommand = "JAVA".equalsIgnoreCase(language)
                 ? List.of("javac", "Main.java")
@@ -24,12 +24,13 @@ public class DockerCommandFactory {
     }
 
     public List<String> runCommand(String language, File workspace, int memoryLimitMb) {
+        int safeMemoryMb = Math.min(Math.max(memoryLimitMb, 64), 1024);
         String image = imageFor(language);
         List<String> languageCommand = "JAVA".equalsIgnoreCase(language)
-                ? List.of("java", "-Xmx" + memoryLimitMb + "m", "Main")
-                : List.of("/workspace/run.sh", String.valueOf(memoryLimitMb * 1024), "/workspace/Main");
+                ? List.of("java", "-Xmx" + safeMemoryMb + "m", "Main")
+                : List.of("/workspace/run.sh", String.valueOf(safeMemoryMb * 1024), "/workspace/Main");
 
-        return dockerCommand(image, workspace, true, memoryLimitMb, languageCommand);
+        return dockerCommand(image, workspace, true, safeMemoryMb, languageCommand);
     }
 
     private List<String> dockerCommand(

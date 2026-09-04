@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -25,10 +24,10 @@ type RequestDetail = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  PENDING: "border-sky-300/30 bg-sky-400/10 text-sky-300",
-  IN_REVIEW: "border-amber-300/30 bg-amber-400/10 text-amber-300",
-  APPROVED: "border-emerald-300/30 bg-emerald-400/10 text-emerald-300",
-  REJECTED: "border-red-400/30 bg-red-500/10 text-red-300",
+  PENDING: "text-[var(--info)] bg-[var(--info-soft)]",
+  IN_REVIEW: "text-[var(--warning)] bg-[var(--warning-soft)]",
+  APPROVED: "text-[var(--success)] bg-[var(--success-soft)]",
+  REJECTED: "text-[var(--danger)] bg-[var(--danger-soft)]",
 };
 
 export default function RequestDetailPage() {
@@ -44,12 +43,12 @@ export default function RequestDetailPage() {
   }, [params.id]);
 
   return (
-    <main className="mx-auto w-[min(900px,calc(100%-32px))] py-8 pb-16">
+    <main className="mx-auto w-[min(860px,calc(100%-32px))] py-8 pb-16">
       <ArcadeLink href="/requests" className="mb-5">
         <ArrowLeft size={15} /> Back
       </ArcadeLink>
       {message && (
-        <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300">{message}</div>
+        <div className="rounded-lg bg-[var(--danger-soft)] px-4 py-3 text-sm font-medium text-[var(--danger)]">{message}</div>
       )}
       {!request && !message && (
         <div className="space-y-3">
@@ -59,23 +58,17 @@ export default function RequestDetailPage() {
         </div>
       )}
       {request && (
-        <div className="glass rounded-3xl p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-3xl font-black text-[var(--text-strong)]">{request.title}</h1>
-            <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-black", STATUS_STYLE[request.status] ?? "border-[var(--line)]")}>
-              {request.status}
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6">
+          <div>
+            <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold", STATUS_STYLE[request.status] ?? "")}>
+              {request.status.replace("_", " ")}
             </span>
+            <h1 className="mt-2 text-xl font-bold leading-snug text-[var(--text-strong)]">{request.title}</h1>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-[var(--muted)]">
+          <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[13px] text-[var(--muted)]">
             <DifficultyBadge difficulty={request.difficulty} />
-            <span className="inline-flex items-center rounded-full border border-[var(--line)] px-2.5 py-1">
-              {new Date(request.createdAt).toLocaleDateString()}
-            </span>
-            {request.reviewedBy && (
-              <span className="inline-flex items-center rounded-full border border-[var(--line)] px-2.5 py-1">
-                Reviewed by {request.reviewedBy.name}
-              </span>
-            )}
+            <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+            {request.reviewedBy && <span>Reviewed by {request.reviewedBy.name}</span>}
           </div>
           {(
             [
@@ -86,14 +79,14 @@ export default function RequestDetailPage() {
             ] as const
           ).map(([label, body]) => (
             <div key={label} className="mt-5">
-              <p className="mb-1.5 font-mono text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">{label}</p>
+              <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-strong)]">{label}</p>
               <pre className="m-0">{body}</pre>
             </div>
           ))}
           {request.adminNotes && (
-            <div className="mt-5 rounded-xl border border-teal-300/25 bg-teal-400/10 px-4 py-3 text-sm">
-              <p className="font-mono text-[11px] font-black uppercase tracking-[0.18em] text-teal-300">Admin feedback</p>
-              <p className="mt-1 text-[var(--text)]">{request.adminNotes}</p>
+            <div className="mt-5 rounded-lg bg-[var(--surface-soft)] px-4 py-3 text-sm">
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-[var(--muted)]">Admin feedback</p>
+              <p className="mt-1 text-[var(--text-strong)]">{request.adminNotes}</p>
             </div>
           )}
         </div>

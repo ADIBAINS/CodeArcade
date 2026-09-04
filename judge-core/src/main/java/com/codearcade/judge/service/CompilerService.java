@@ -10,8 +10,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 public class CompilerService {
+    private static final ExecutorService STREAM_POOL = Executors.newCachedThreadPool(r -> {
+        Thread thread = new Thread(r, "judge-compile-io");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final JudgeConfig config;
     private final DockerCommandFactory dockerCommandFactory;
 
@@ -22,15 +26,15 @@ public class CompilerService {
 
     public boolean compile(String language, File workspace) throws IOException, InterruptedException {
         if (config.isDockerExecutionMode()) {
-            return runWithTimeout(new ProcessBuilder(dockerCommandFactory.compileCommand(language, workspace)), workspace, 20);
+            return runWithTimeout(new ProcessBuilder(dockerCommandFactory.compileCommand(language, workspace)), workspace, config.getCompileTimeoutSeconds());
         }
 
         if ("JAVA".equalsIgnoreCase(language)) {
-            return runWithTimeout(new ProcessBuilder("javac", "Main.java"), workspace, 10);
+            return runWithTimeout(new ProcessBuilder("javac", "Main.java"), workspace, Math.min(config.getCompileTimeoutSeconds(), 30));
         }
 
         if ("CPP".equalsIgnoreCase(language)) {
-            return runWithTimeout(new ProcessBuilder("g++", "Main.cpp", "-O2", "-o", "Main"), workspace, 10);
+            return runWithTimeout(new ProcessBuilder("g++", "Main.cpp", "-O2", "-o", "Main"), workspace, Math.min(config.getCompileTimeoutSeconds(), 30));
         }
 
         throw new IllegalArgumentException("Unsupported language: " + language);
@@ -56,21 +60,30 @@ public class CompilerService {
             throws IOException, InterruptedException {
         builder.directory(workspace);
         Process process = builder.start();
-        ExecutorService streamPool = Executors.newFixedThreadPool(2);
-        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getInputStream()), streamPool);
-        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getErrorStream()), streamPool);
-        boolean completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getInputStream()), STREAM_POOL);
+        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> ProcessUtil.readLimited(process.getErrorStream()), STREAM_POOL);
+        boolean completed = false;
+        try {
+            completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+        } finally {
+            if (!completed) {
+                process.destroyForcibly();
+                process.waitFor(2, TimeUnit.SECONDS);
+            }
+        }
 
         if (!completed) {
-            process.destroyForcibly();
-            process.waitFor(2, TimeUnit.SECONDS);
-            streamPool.shutdownNow();
+            stdout.cancel(true);
+            stderr.cancel(true);
             return false;
         }
 
-        stdout.join();
-        stderr.join();
-        streamPool.shutdownNow();
+        try {
+            stdout.join();
+            stderr.join();
+        } catch (RuntimeException error) {
+            return false;
+        }
         return process.exitValue() == 0;
     }
 }
